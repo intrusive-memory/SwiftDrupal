@@ -1,3 +1,7 @@
+---
+type: requirements
+---
+
 # Swift/Containerization Drupal tool — v1.0 requirements
 
 Working draft. Supersedes the architecture question left open in
