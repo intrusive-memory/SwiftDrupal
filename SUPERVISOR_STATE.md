@@ -114,13 +114,15 @@ feature_name: OPERATION DROPLET SHIPYARD
 
 ### Dev Tools (exec/ssh/logs)
 - Work unit state: RUNNING
-- Current sortie: 6a of 2
+- Current sortie: 6b of 2
 - Sortie state: DISPATCHED
 - Sortie type: code
 - Model: sonnet
 - Complexity score: 12
 - Attempt: 1 of 3
-- Isolation: git worktree
+- Isolation: none (main working tree, sole active sortie)
+- 6a last verified: commit 46da9ab merged as 262380d (Drupal.swift conflict resolved by supervisor); swift_package_test SUCCEEDED twice back-to-back (193 tests, 36 suites) to check signal-test flakiness
+- 6a notes: No TTY resize (ExecRequest has no resize hook). exec/ssh always forward stdin; TTY auto-detected from isatty(stdin); ssh always requests a pty. Real-signal tests: SIGUSR2 is used by ServiceTests, SIGUSR1/SIGWINCH by SSHCommandTests; a re-signal after guard cancel() kills the test runner (caused a 30-minute hang during 6a). ServiceTarget.swift maps service name to container id.
 
 ### Agent-Friendly Contract, Manifest & Docs
 - Work unit state: NOT_STARTED
@@ -169,3 +171,7 @@ feature_name: OPERATION DROPLET SHIPYARD
 | 2026-09-13T21:09:34Z | Database | 5 | COMPLETED | Agent report + merge e9e4ba9 + supervisor swift_package_test SUCCEEDED, 163 tests / 34 suites |
 | 2026-09-13T21:09:34Z | Database | 5 | Merge conflict in CLI/Drupal.swift subcommand list resolved by supervisor (union of Sortie 4 + 5 entries) | Expected parallel-registration conflict; no logic change |
 | 2026-09-13T21:51:25Z | Lifecycle | 4 | User decision: `drupal delete` keeps deleting database data by default; `--keep-data` opts out. No code change | Recorded in EXECUTION_PLAN.md as OQ-5; 7a/7b must document it, not change it |
+| 2026-09-13T22:15:06Z | Dev Tools | 6a | COMPLETED | Agent report + merge 262380d + supervisor swift_package_test SUCCEEDED twice, 193 tests / 36 suites |
+| 2026-09-13T22:15:06Z | — | — | Worktree base defect hit all three Layer 3 worktrees (da79dec); every agent reset per prompt | Systematic; keep the base-pin step |
+| 2026-09-13T22:15:06Z | Dev Tools | 6b | Model: sonnet | Score 12 (turns 21-35 = 5, 3-5 files = +2, 2 dependents = 2, timestamp-merge algorithm = 3) |
+| 2026-09-13T22:15:06Z | Dev Tools | 6b | Isolation: main working tree | Sole active sortie |
