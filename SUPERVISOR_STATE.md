@@ -41,25 +41,35 @@ feature_name: OPERATION DROPLET SHIPYARD
 ## Work Unit State
 
 ### Core CLI Scaffolding & Config Model
-- Work unit state: RUNNING
+- Work unit state: COMPLETED
 - Current sortie: 1 of 1
+- Sortie state: COMPLETED
+- Sortie type: code
+- Model: opus
+- Complexity score: 21
+- Attempt: 1 of 3
+- Last verified: commit 7cdfaf9; supervisor re-ran swift_package_test SUCCEEDED (20 tests, 4 suites)
+- Notes: Split into library target SwiftDrupal + executable DrupalCLI. Config at .drupal/config.yaml. ExitCode 10-13; name clash with ArgumentParser.ExitCode (qualify when both imported).
+
+### Container Orchestration Core
+- Work unit state: RUNNING
+- Current sortie: 2 of 1
 - Sortie state: DISPATCHED
 - Sortie type: code
 - Model: opus
 - Complexity score: 21
 - Attempt: 1 of 3
-- Last verified: —
-- Notes: —
-
-### Container Orchestration Core
-- Work unit state: NOT_STARTED
-- Current sortie: 2 of 1
-- Sortie state: PENDING
+- Isolation: git worktree
 
 ### Networking / Hostname Resolution
-- Work unit state: NOT_STARTED
+- Work unit state: RUNNING
 - Current sortie: 3 of 1
-- Sortie state: PENDING
+- Sortie state: DISPATCHED
+- Sortie type: code
+- Model: opus
+- Complexity score: 14
+- Attempt: 1 of 3
+- Isolation: git worktree
 
 ### Lifecycle Commands
 - Work unit state: NOT_STARTED
@@ -84,6 +94,8 @@ feature_name: OPERATION DROPLET SHIPYARD
 ## Active Agents
 | Work Unit | Sortie | Sortie State | Attempt | Model | Complexity Score | Task ID | Output File | Dispatched At |
 |-----------|--------|-------------|---------|-------|-----------------|---------|-------------|---------------|
+| Container Orchestration Core | 2 | DISPATCHED | 1/3 | opus | 21 | sortie-2-agent | worktree | 2026-09-13T18:37:00Z |
+| Networking / Hostname Resolution | 3 | DISPATCHED | 1/3 | opus | 14 | sortie-3-agent | worktree | 2026-09-13T18:37:00Z |
 
 ## Decisions Log
 | Timestamp | Work Unit | Sortie | Decision | Rationale |
@@ -93,3 +105,7 @@ feature_name: OPERATION DROPLET SHIPYARD
 | 2026-09-13T18:30:43Z | — | — | Carried uncommitted EXECUTION_PLAN.md edit (swift build → XcodeBuildMCP criteria) onto mission branch | Plan edit predates start; committed with frontmatter |
 | 2026-09-13T18:30:43Z | Core CLI | 1 | Model: opus | Score 21 (≈25 turns, 6-10 files, foundation for all 8 sorties, depth 8); force-opus override (foundation + depth ≥5) |
 | 2026-09-13T18:30:43Z | — | — | Layer 1+ parallel sorties will use git worktree isolation, merged back by supervisor | Parallel agents in one working tree race on .build lock, Package.swift, and git commits |
+| 2026-09-13T18:36:30Z | Core CLI | 1 | COMPLETED | Agent report + commit 7cdfaf9 + supervisor-run swift_package_test SUCCEEDED |
+| 2026-09-13T18:36:30Z | — | — | Gate: Container Orchestration Core and Networking unlocked (RUNNING) | Sole dependency Core CLI COMPLETED |
+| 2026-09-13T18:37:00Z | Container | 2 | Model: opus | Score 21 (≈25 turns, 6-10 files, unfamiliar Containerization APIs, depth 6); force-opus (foundation + depth ≥5) |
+| 2026-09-13T18:37:00Z | Networking | 3 | Model: opus | Score 14 (≈25 turns, 3-5 files, DNS wire format + privileged system I/O, depth 3) |
