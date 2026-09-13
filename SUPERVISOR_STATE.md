@@ -175,3 +175,4 @@ feature_name: OPERATION DROPLET SHIPYARD
 | 2026-09-13T22:15:06Z | — | — | Worktree base defect hit all three Layer 3 worktrees (da79dec); every agent reset per prompt | Systematic; keep the base-pin step |
 | 2026-09-13T22:15:06Z | Dev Tools | 6b | Model: sonnet | Score 12 (turns 21-35 = 5, 3-5 files = +2, 2 dependents = 2, timestamp-merge algorithm = 3) |
 | 2026-09-13T22:15:06Z | Dev Tools | 6b | Isolation: main working tree | Sole active sortie |
+| 2026-09-13T22:18:06Z | Agent Contract | 7b | User decision: hold the live fkd-drupal8 smoke test; the user runs it on another machine. 7b writes a portable script only, not executed; fixture entry criterion removed | Recorded in EXECUTION_PLAN.md as OQ-6. Mission can complete with zero live Containerization runs; the brief must flag this |

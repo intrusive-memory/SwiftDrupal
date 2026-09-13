@@ -26,6 +26,8 @@ tasked requirements).
 
 ## Acceptance Fixture — Real-World Starting Point
 
+> **OQ-6:** the user runs this smoke test on another machine. Sortie 7b only writes the script.
+
 Sortie 7b's end-to-end smoke test proves the `drupal` binary can host a real Drupal site, not a synthetic one. The concrete starting point:
 
 - **Code**: `~/Projects/caffrey/fkd-drupal8` (GitHub `Find-Know-Do/fkd-drupal8`, Pantheon-hosted). Synced to `origin/master` at commit `08889dccd5` (2026-09-11). Docroot: `web/`.
@@ -258,16 +260,16 @@ Sortie 7b's end-to-end smoke test proves the `drupal` binary can host a real Dru
 
 **Entry criteria**:
 - [ ] Sortie 7a exit criteria met (manifest and wiring-audit fixes available to document/exercise).
-- [ ] The real-world acceptance fixture (see `## Acceptance Fixture — Real-World Starting Point`) is available: `~/Projects/caffrey/fkd-drupal8` synced to `origin/master`, with `dbbackup/fkd-drupal8_live_2026-09-11T17-57-07_UTC_database.sql.gz` present in that repo.
+- [ ] ~~The real-world acceptance fixture is available on this machine.~~ Removed by OQ-6: the user runs the `fkd-drupal8` smoke test on another machine, so this sortie needs no fixture.
 
 **Tasks**:
 1. Expand the repository's root `AGENTS.md` with titled sections: "Config Schema" (with a full YAML example), "Command Reference" (every subcommand with its flags and `--json` behavior), and "Common Workflows" (at least two worked examples each for: bring up a fresh Drupal site, import a database, tail logs).
-2. Write an end-to-end smoke test exercising `init` → `import-db dbbackup/fkd-drupal8_live_2026-09-11T17-57-07_UTC_database.sql.gz` → `start` → `status` → `stop` → `delete` against the real `~/Projects/caffrey/fkd-drupal8` starting point (not a synthetic fresh Drupal site) — this is the mission's concrete proof that the `drupal` binary can host a real Drupal 11 site end to end. Assert the JSON output shape at each step. Document as a repeatable manual test script if a live `Containerization` runtime is required to execute it automatically.
+2. Write an end-to-end smoke test exercising `init` → `import-db dbbackup/fkd-drupal8_live_2026-09-11T17-57-07_UTC_database.sql.gz` → `start` → `status` → `stop` → `delete` against the real `~/Projects/caffrey/fkd-drupal8` starting point (not a synthetic fresh Drupal site) — this is the mission's concrete proof that the `drupal` binary can host a real Drupal 11 site end to end. Assert the JSON output shape at each step. **Per OQ-6, write this as a portable manual script and do NOT run it in this mission.** The user runs it on another machine. Take the fixture path and dump path as arguments or env vars (defaulting to the paths above) instead of hardcoding this machine's home directory. Include a `drupal service install` preflight check and the host prerequisites: macOS 26+, Apple silicon, and a signed binary with the virtualization entitlement.
 
 **Exit criteria**:
 - [ ] XcodeBuildMCP `swift_package_build` succeeds.
 - [ ] `AGENTS.md` contains the "Config Schema", "Command Reference", and "Common Workflows" sections, each meeting the content requirements in Task 1.
-- [ ] The end-to-end smoke test (automated or documented manual script) exists on disk, names its steps explicitly (`init`, `import-db`, `start`, `status`, `stop`, `delete`), and targets the `~/Projects/caffrey/fkd-drupal8` fixture rather than a synthetic project.
+- [ ] The end-to-end smoke test script exists on disk. It names its steps explicitly (`init`, `import-db`, `start`, `status`, `stop`, `delete`), targets the `fkd-drupal8` fixture through configurable paths, and passes `bash -n`. It is not executed in this mission (OQ-6).
 
 ---
 
@@ -344,11 +346,17 @@ _No blocking open questions identified during breakdown._
 **Considered and rejected**: keeping data by default with an opt-in `--purge-data`. The supervisor recommended it because an agent running `delete` unattended would silently destroy an imported database.
 **Carried into 7a/7b**: the manifest and `AGENTS.md` Command Reference must state plainly that `delete` is destructive by default and name `--keep-data`. The 7a wiring audit must not "fix" this default.
 
+### Resolved OQ-6: Where the `fkd-drupal8` smoke test runs
+**Affected**: Sortie 7b, Acceptance Fixture section
+**Decided**: 2026-09-13, user decision
+**Decision**: Hold the live smoke test. The user runs the `fkd-drupal8` end-to-end test on another machine. Sortie 7b still writes the portable smoke-test script, with configurable fixture paths and a prerequisites preflight, but doesn't run it. The fixture entry criterion is removed.
+**Consequence**: the mission can complete without any live `Containerization` run. Everything in OQ-4's "never exercised live" list stays unverified until the user's run: the LaunchAgent-hosted VMs, the entitlement, 2.5GB streaming, the DDEV db credentials, and resolver behavior. The mission brief must not treat a green test suite as proof that the product works.
+
 ## Summary
 
 | Metric | Value |
 |--------|-------|
 | Work units | 8 |
 | Total sorties | 10 |
-| Open questions | 0 (5 resolved in Decision Log) |
+| Open questions | 0 (6 resolved in Decision Log) |
 | Dependency structure | layers |
