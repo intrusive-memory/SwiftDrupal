@@ -52,14 +52,16 @@ feature_name: OPERATION DROPLET SHIPYARD
 - Notes: Split into library target SwiftDrupal + executable DrupalCLI. Config at .drupal/config.yaml. ExitCode 10-13; name clash with ArgumentParser.ExitCode (qualify when both imported).
 
 ### Container Orchestration Core
-- Work unit state: RUNNING
+- Work unit state: COMPLETED
 - Current sortie: 2 of 1
-- Sortie state: DISPATCHED
+- Sortie state: COMPLETED
 - Sortie type: code
 - Model: opus
 - Complexity score: 21
 - Attempt: 1 of 3
 - Isolation: git worktree
+- Last verified: commit 66d5487 merged as c89f9b3; supervisor re-ran swift_package_test SUCCEEDED (86 tests, 15 suites, combined with Sortie 3)
+- Notes: Live Containerization path compiles against 0.45.0 but never run. ddev-webserver selected via DDEV_PHP_VERSION/DDEV_WEBSERVER_TYPE env (single image), releaseTag v1.24.8 unverified. DB data on virtiofs share (ownership/perf risk). OPEN ARCHITECTURE GAP: containers are VMs owned by the `drupal` process and die when `start` exits.
 
 ### Networking / Hostname Resolution
 - Work unit state: COMPLETED
@@ -96,7 +98,6 @@ feature_name: OPERATION DROPLET SHIPYARD
 ## Active Agents
 | Work Unit | Sortie | Sortie State | Attempt | Model | Complexity Score | Task ID | Output File | Dispatched At |
 |-----------|--------|-------------|---------|-------|-----------------|---------|-------------|---------------|
-| Container Orchestration Core | 2 | DISPATCHED | 1/3 | opus | 21 | sortie-2-agent | worktree | 2026-09-13T18:37:00Z |
 
 ## Decisions Log
 | Timestamp | Work Unit | Sortie | Decision | Rationale |
@@ -113,3 +114,7 @@ feature_name: OPERATION DROPLET SHIPYARD
 | 2026-09-13T18:46:30Z | Networking | 3 | COMPLETED | Agent report + commit 018e53f (ff-merge) + supervisor swift_package_test SUCCEEDED, 44 tests |
 | 2026-09-13T18:46:30Z | — | — | Worktree isolation defect: Sortie 3 worktree was created from da79dec, not branch HEAD; agent reset to 3716465 | Future worktree dispatches must instruct agents to verify/reset base commit before starting |
 | 2026-09-13T18:46:30Z | Networking | 3 | Escalated design gap to user: DNS responder lives in the `drupal` process and dies after `start` exits, so local-resolver default cannot work as specified | Blocks Sortie 4 dispatch until user picks: long-lived responder vs hosts-file default |
+| 2026-09-13T19:05:30Z | Container | 2 | COMPLETED | Agent report + merge c89f9b3 + supervisor swift_package_test SUCCEEDED, 86 tests |
+| 2026-09-13T19:05:30Z | — | — | Sortie 2 worktree also based on da79dec; agent fast-forwarded to 3716465 | Confirms worktree base defect is systematic |
+| 2026-09-13T19:05:30Z | Networking | 3 | User decision: DNS follows the Laravel Valet method (long-lived resolver registered via /etc/resolver) | User answer to DNS design escalation |
+| 2026-09-13T19:05:30Z | — | — | HOLD Layer 2 dispatch (Sorties 4, 5, 6a) | Sortie 2 found containers die with the `drupal` process; host-process architecture decision needed before lifecycle/exec/logs sorties are built on ContainerService |
