@@ -17,6 +17,14 @@ let package = Package(
         .package(url: "https://github.com/jpsim/Yams", from: "6.0.0"),
     ],
     targets: [
+        // System-library shim exposing the platform's libz (gzip/zlib
+        // inflate/deflate) to Swift. Not a new package dependency — libz
+        // ships with the OS — so `import-db`/`export-db` (Sortie 5) can
+        // decompress gzip input while streaming without shelling out.
+        .systemLibrary(
+            name: "CZlib",
+            path: "Sources/CZlib"
+        ),
         // All testable logic (config model, CLI commands, output/exit-code
         // contract) lives in the `SwiftDrupal` library target so the test
         // target and later sorties can import it without relying on
@@ -27,6 +35,7 @@ let package = Package(
                 .product(name: "Containerization", package: "containerization"),
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
                 .product(name: "Yams", package: "Yams"),
+                "CZlib",
             ]
         ),
         // Thin entry point that produces the `drupal` binary.
@@ -39,6 +48,7 @@ let package = Package(
             dependencies: [
                 "SwiftDrupal",
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
+                "CZlib",
             ],
             resources: [.copy("Fixtures")]
         ),
