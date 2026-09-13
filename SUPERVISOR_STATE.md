@@ -127,14 +127,15 @@ feature_name: OPERATION DROPLET SHIPYARD
 - 6a notes: No TTY resize (ExecRequest has no resize hook). exec/ssh always forward stdin; TTY auto-detected from isatty(stdin); ssh always requests a pty. Real-signal tests: SIGUSR2 is used by ServiceTests, SIGUSR1/SIGWINCH by SSHCommandTests; a re-signal after guard cancel() kills the test runner (caused a 30-minute hang during 6a). ServiceTarget.swift maps service name to container id.
 
 ### Agent-Friendly Contract, Manifest & Docs
-- Work unit state: RUNNING
+- Work unit state: COMPLETED
 - Current sortie: 7b of 2
-- Sortie state: DISPATCHED
+- Sortie state: COMPLETED
 - Sortie type: code
 - Model: sonnet
 - Complexity score: 10
 - Attempt: 1 of 3
 - Isolation: none (main working tree, sole active sortie)
+- 7b last verified: commit 275a331; supervisor grep for stale build text clean; bash -n clean; script executable; entitlements plist has com.apple.security.virtualization; AGENTS.md sections present. Built binary path under XcodeBuildMCP is .build/out/Products/Debug/drupal
 - 7a last verified: commit 7fe72bb; supervisor swift_package_test SUCCEEDED twice (262 tests, 45 suites); docs/schema/manifest.json valid JSON; no doc/plan/Package.swift changes
 - 7a notes: `drupal --manifest` == `drupal describe-commands`. The manifest is built from ArgumentParser's experimental dump-help (format not guaranteed stable across releases). JSON error envelope on stderr; usage error = 64. import/export client failure → 1. Truncated .gz now fails. post_start runs /bin/sh -c in <name>-web, cwd /var/www/html; stops at first failure → exit 12. DEFERRED for brief: three different project-root lookups (LifecycleProject.load with parent search, ServiceTarget with cwd only, DatabaseTransfer with cwd or --project-root and tolerant of missing config), so exec/ssh/logs have no --project-root.
 
@@ -193,3 +194,5 @@ feature_name: OPERATION DROPLET SHIPYARD
 | 2026-09-13T22:47:36Z | Agent Contract | 7a | Model: opus | Score 17 (turns 36-50 = 8, 6-10 files = +4, open-ended wiring audit = 3, system/exec = 2) |
 | 2026-09-13T23:04:16Z | Agent Contract | 7a | COMPLETED | Agent report + commit 7fe72bb + supervisor swift_package_test SUCCEEDED twice, 262 tests / 45 suites |
 | 2026-09-13T23:04:16Z | Agent Contract | 7b | Model: sonnet | Score 10 (turns 21-35 = 5, 3-5 files = +2, mixed criteria = 2, low risk = 1). Accuracy is guarded by requiring the docs' command reference to be generated from `drupal describe-commands` output |
+| 2026-09-13T23:16:11Z | Agent Contract | 7b | COMPLETED | Agent report + commit 275a331 + supervisor checks of the exit criteria |
+| 2026-09-13T23:16:11Z | — | — | All 8 work units COMPLETED. Post-mission flow (completion → test-cleanup → brief → clean) is ON HOLD | Supervisor found a plan gap while answering the user's "what does start launch" question: nothing wires Drupal to the database (no settings include, DB host or credentials in the web container; db hostname `<name>-db` with inter-VM resolution unverified) and there is no host-UID mapping for the stock DDEV images. Waiting for the user to choose between (a) a new database-wiring sortie and (b) documenting these as known gaps |
