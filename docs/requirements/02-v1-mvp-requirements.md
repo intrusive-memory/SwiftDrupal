@@ -120,6 +120,14 @@ list DDEV has accumulated over years (see "Explicitly out of scope").
    `drupal logs`, and so on) — no separate daemon binary or wrapper script
    for v1.0.
 
+   > **Amended 2026-09-13 (EXECUTION_PLAN.md OQ-3, OQ-4):** still one
+   > binary, but it now has a long-lived service mode. `drupal service run`,
+   > managed by a per-user launchd LaunchAgent, owns both the container VMs
+   > and the DNS responder described below, Laravel Valet–style. Every other
+   > subcommand is a short-lived client of that process. This was forced by
+   > `Containerization` VMs and the in-process responder both dying when a
+   > one-shot `drupal start` exits.
+
 `.drupal` is not a delegated public TLD or one of the reserved
 special-use TLDs (`.test`, `.localhost`, and similar, per RFC 6761), so
 nothing resolves it without help, and `Containerization` assigns each
@@ -127,7 +135,8 @@ container's IP per run rather than a fixed address DDEV-style Docker
 networking would. Two ways to make `<name>.drupal` resolve, in preference
 order:
 
-- **A local resolver process (preferred).** The `drupal` binary runs a
+- **A local resolver process (preferred).** The `drupal` binary — in its
+  launchd-managed service mode (see the amendment above) — runs a
   small DNS responder bound to `127.0.0.1` that answers `*.drupal`
   queries with the current web container's dedicated IP, registered with
   macOS once via a `/etc/resolver/drupal` file pointing at it. One-time

@@ -22,8 +22,8 @@ feature_name: OPERATION DROPLET SHIPYARD
 - Dependency graph: untouched (no floor bumps, no Package.resolved deletion, no SPM cache clear)
 
 ## Plan Summary
-- Work units: 7
-- Total sorties: 9
+- Work units: 8
+- Total sorties: 10
 - Dependency structure: layers
 - Dispatch mode: dynamic
 
@@ -33,9 +33,10 @@ feature_name: OPERATION DROPLET SHIPYARD
 | Core CLI Scaffolding & Config Model | Sources/SwiftDrupal/CLI, Config | 1 | none |
 | Container Orchestration Core | Sources/SwiftDrupal/Container | 1 | Core CLI |
 | Networking / Hostname Resolution | Sources/SwiftDrupal/Networking | 1 | Core CLI |
-| Lifecycle Commands | Sources/SwiftDrupal/CLI/Commands | 1 | Container, Networking |
-| Database Import/Export | Sources/SwiftDrupal/CLI/Commands | 1 | Container |
-| Dev Tools (exec/ssh/logs) | CLI/Commands, Logging | 2 (6a, 6b) | Container |
+| Host Service (launchd) | Sources/SwiftDrupal/Service | 1 (8) | Container, Networking |
+| Lifecycle Commands | Sources/SwiftDrupal/CLI/Commands | 1 | Host Service |
+| Database Import/Export | Sources/SwiftDrupal/CLI/Commands | 1 | Host Service |
+| Dev Tools (exec/ssh/logs) | CLI/Commands, Logging | 2 (6a, 6b) | Host Service |
 | Agent-Friendly Contract, Manifest & Docs | cross-cutting, AGENTS.md | 2 (7a, 7b) | Lifecycle, Database, Dev Tools |
 
 ## Work Unit State
@@ -61,7 +62,7 @@ feature_name: OPERATION DROPLET SHIPYARD
 - Attempt: 1 of 3
 - Isolation: git worktree
 - Last verified: commit 66d5487 merged as c89f9b3; supervisor re-ran swift_package_test SUCCEEDED (86 tests, 15 suites, combined with Sortie 3)
-- Notes: Live Containerization path compiles against 0.45.0 but never run. ddev-webserver selected via DDEV_PHP_VERSION/DDEV_WEBSERVER_TYPE env (single image), releaseTag v1.24.8 unverified. DB data on virtiofs share (ownership/perf risk). OPEN ARCHITECTURE GAP: containers are VMs owned by the `drupal` process and die when `start` exits.
+- Notes: Live Containerization path compiles against 0.45.0 but never run. ddev-webserver selected via DDEV_PHP_VERSION/DDEV_WEBSERVER_TYPE env (single image), releaseTag v1.24.8 unverified. DB data on virtiofs share (ownership/perf risk). Architecture gap (containers are VMs that die when `start` exits) RESOLVED by OQ-4: the launchd-managed service hosts LiveContainerService — Sortie 8.
 
 ### Networking / Hostname Resolution
 - Work unit state: COMPLETED
@@ -73,7 +74,12 @@ feature_name: OPERATION DROPLET SHIPYARD
 - Attempt: 1 of 3
 - Isolation: git worktree
 - Last verified: commit 018e53f fast-forwarded onto mission branch; supervisor re-ran swift_package_test SUCCEEDED (44 tests, 8 suites)
-- Notes: Container IP not yet wired (Sortie 4 must pass ContainerService IP to coordinator.activate). New HostnameError enum not mapped to DrupalError exit codes. OPEN DESIGN GAP: in-process DNS responder dies when `drupal start` exits — see Decisions Log.
+- Notes: Container IP not yet wired (Sortie 4 must pass ContainerService IP to coordinator.activate). New HostnameError enum not mapped to DrupalError exit codes. Design gap (in-process DNS responder dies when `start` exits) RESOLVED by OQ-3/OQ-4: the responder runs in the launchd-managed service, and IP wiring moves to Sortie 8.
+
+### Host Service (launchd)
+- Work unit state: NOT_STARTED (unlocked — Container and Networking COMPLETED)
+- Current sortie: 8 of 1
+- Sortie state: PENDING
 
 ### Lifecycle Commands
 - Work unit state: NOT_STARTED
@@ -118,3 +124,6 @@ feature_name: OPERATION DROPLET SHIPYARD
 | 2026-09-13T19:05:30Z | — | — | Sortie 2 worktree also based on da79dec; agent fast-forwarded to 3716465 | Confirms worktree base defect is systematic |
 | 2026-09-13T19:05:30Z | Networking | 3 | User decision: DNS follows the Laravel Valet method (long-lived resolver registered via /etc/resolver) | User answer to DNS design escalation |
 | 2026-09-13T19:05:30Z | — | — | HOLD Layer 2 dispatch (Sorties 4, 5, 6a) | Sortie 2 found containers die with the `drupal` process; host-process architecture decision needed before lifecycle/exec/logs sorties are built on ContainerService |
+| 2026-09-13 | — | — | User decision: one launchd-managed `drupal` process (`drupal service run`, per-user LaunchAgent) owns BOTH the container VMs and the DNS responder | Resolves the Sortie 2 and Sortie 3 lifetime gaps; recorded in EXECUTION_PLAN.md as OQ-3 and OQ-4 |
+| 2026-09-13 | — | — | Plan amended: new work unit Host Service (launchd), Sortie 8, at Layer 2; Sorties 4, 5, and 6a now depend on Sortie 8 and move to Layer 3; 7a and 7b move to Layer 4 | Decisions recorded in the plan, not only in state, so later plan reads don't reopen them. HOLD on 4/5/6a is replaced by their Sortie 8 dependency |
+| 2026-09-13 | — | — | Recurring-question root cause: the DNS decision was logged only in SUPERVISOR_STATE.md, not in the EXECUTION_PLAN.md Decision Log | From now on, every user architecture decision goes into the plan's Decision Log as a Resolved OQ in the same step it is logged here |
