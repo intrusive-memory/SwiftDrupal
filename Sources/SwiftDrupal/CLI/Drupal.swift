@@ -16,7 +16,7 @@ public struct Drupal: AsyncParsableCommand {
         commandName: "drupal",
         abstract: "Run a local Drupal development environment on Apple's container runtime.",
         version: version,
-        subcommands: [ServiceCommand.self]
+        subcommands: [ServiceCommand.self, ExecCommand.self, SSHCommand.self]
     )
 
     public init() {}
