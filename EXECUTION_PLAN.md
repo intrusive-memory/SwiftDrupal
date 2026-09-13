@@ -264,11 +264,49 @@ Sortie 7b's end-to-end smoke test proves the `drupal` binary can host a real Dru
 
 **Tasks**:
 1. Expand the repository's root `AGENTS.md` with titled sections: "Config Schema" (with a full YAML example), "Command Reference" (every subcommand with its flags and `--json` behavior), and "Common Workflows" (at least two worked examples each for: bring up a fresh Drupal site, import a database, tail logs).
+1b. **(OQ-7) Write the build, host and test docs, and commit them, so that an agent on a fresh machine can build the binary, host a Drupal site with it, and run the tests using only these docs.** Update three files:
+   - **`AGENTS.md`** is the canonical, detailed version. Add these sections:
+     - **"Building the `drupal` binary":**
+       - the platform floor
+       - building a release binary (XcodeBuildMCP `swift_package_build` locally; raw `xcodebuild` only in CI; never `swift build`/`swift test`)
+       - where the built binary ends up
+       - **signing it with the `com.apple.security.virtualization` entitlement** (codesign command plus the entitlements plist; see the facts below)
+       - installing it at a stable absolute path, because the LaunchAgent plist records that path
+     - **"Host prerequisites":**
+       - Apple silicon, macOS 26+
+       - the Linux kernel and `vminit` image `LiveContainerService` needs, and exactly how to obtain them
+       - the one-time admin password prompt during `drupal service install`
+     - **"Hosting a Drupal site", step by step:**
+       - `drupal service install` → `service status --json`
+       - `init` in the Drupal project root (config at `.drupal/config.yaml`; project name from the directory; hostname `<name>.drupal`)
+       - `start` → `import-db <dump.sql.gz>` → open `http://<name>.drupal` → `exec`/`ssh`/`logs`
+       - `stop` → `delete`, with its destructive default and `--keep-data` stated (OQ-5)
+       - `service uninstall`
+     - **"Running the tests":**
+       - unit tests (XcodeBuildMCP `swift_package_test` locally; the equivalent `xcodebuild test` invocation for CI or an agent without XcodeBuildMCP)
+       - the manual service check `scripts/verify-service-manual.sh`
+       - the Task 2 `fkd-drupal8` smoke-test script, with its arguments and how to read its output
+     - **"Troubleshooting by exit code":** 10 invalid config, 11 platform unavailable, 12 container failed to start, 13 health timeout, 14 service unavailable. Also cover the `/etc/hosts` fallback warning and a missing kernel.
+     - **Replace** the stale "Building" section (`swift build`/`swift test`) and the stale "Status: Requirements only" section.
+   - **`README.md`** is the short human-facing version. Replace "Not implemented yet" and `swift build` with the current status (v1.0 implemented; live end-to-end run pending, per OQ-6), a quick start (build → sign → `service install` → `init` → `start`), and a link to the `AGENTS.md` sections for detail.
+   - **`CLAUDE.md`** is new at the repo root and follows the parent repository's convention: a one-line pointer to `AGENTS.md`, plus the hard build rule (XcodeBuildMCP locally, never `swift build`/`swift test`).
+   - **Anything not verified live must be marked as unverified in the docs** instead of presented as fact: the kernel path, the `vminit` tag, the entitlement signing flow, DDEV db credentials, and multi-GB import.
+
+   **Facts gathered by the supervisor for Task 1b (verify each against the code before using it):**
+   - `Package.swift`: product `drupal` (executable target `DrupalCLI`), library `SwiftDrupal`, `CZlib` system library, platform `.macOS(.v26)`, swift-tools 6.3.
+   - The repo has **no entitlements file and no Makefile**. The docs task includes committing an entitlements plist (e.g. `drupal.entitlements` with `com.apple.security.virtualization`) and documenting the `codesign --entitlements … --sign -` step. Whether ad-hoc signing (`-`) is enough for Virtualization.framework under a LaunchAgent is unverified; say so.
+   - `LiveContainerService.Configuration.default` (`Sources/SwiftDrupal/Container/LiveContainerService.swift`): the kernel is expected at `~/Library/Application Support/com.apple.container/kernels/default.kernel-arm64`, which is **the kernel installed by Apple's `container` CLI**. So the prerequisite is installing Apple's `container` tool and running its system start/kernel install once. The initfs is `ghcr.io/apple/containerization/vminit:0.45.0`. Both carry a `TODO(verify)` in code. `start` fails with a "Linux kernel not found" error if the kernel is missing.
+   - Networking uses `VmnetNetwork()`.
+   - Service: LaunchAgent label `com.intrusive-memory.swiftdrupal.service`, socket `~/Library/Application Support/SwiftDrupal/service.sock` (`SWIFTDRUPAL_SERVICE_SOCKET` overrides), and `install` warns when the binary lives under `.build/` or `DerivedData/`.
+   - The existing `AGENTS.md` already has a correct "Process model (host service)" section from Sortie 8. Keep it.
 2. Write an end-to-end smoke test exercising `init` → `import-db dbbackup/fkd-drupal8_live_2026-09-11T17-57-07_UTC_database.sql.gz` → `start` → `status` → `stop` → `delete` against the real `~/Projects/caffrey/fkd-drupal8` starting point (not a synthetic fresh Drupal site) — this is the mission's concrete proof that the `drupal` binary can host a real Drupal 11 site end to end. Assert the JSON output shape at each step. **Per OQ-6, write this as a portable manual script and do NOT run it in this mission.** The user runs it on another machine. Take the fixture path and dump path as arguments or env vars (defaulting to the paths above) instead of hardcoding this machine's home directory. Include a `drupal service install` preflight check and the host prerequisites: macOS 26+, Apple silicon, and a signed binary with the virtualization entitlement.
 
 **Exit criteria**:
 - [ ] XcodeBuildMCP `swift_package_build` succeeds.
 - [ ] `AGENTS.md` contains the "Config Schema", "Command Reference", and "Common Workflows" sections, each meeting the content requirements in Task 1.
+- [ ] (OQ-7) `AGENTS.md` contains the "Building the `drupal` binary", "Host prerequisites", "Hosting a Drupal site", "Running the tests", and "Troubleshooting by exit code" sections from Task 1b, and no longer contains `swift build`, `swift test`, or "Requirements only". Check with `grep -n "swift build\|swift test\|Requirements only" AGENTS.md README.md`, which must print nothing.
+- [ ] (OQ-7) `README.md` has a quick start and links to `AGENTS.md`; `CLAUDE.md` exists at the repo root and points to `AGENTS.md`; an entitlements plist containing `com.apple.security.virtualization` is committed and referenced by the documented `codesign` command.
+- [ ] (OQ-7) All doc changes, the entitlements plist, and the smoke-test script are committed to the mission branch.
 - [ ] The end-to-end smoke test script exists on disk. It names its steps explicitly (`init`, `import-db`, `start`, `status`, `stop`, `delete`), targets the `fkd-drupal8` fixture through configurable paths, and passes `bash -n`. It is not executed in this mission (OQ-6).
 
 ---
@@ -352,11 +390,17 @@ _No blocking open questions identified during breakdown._
 **Decision**: Hold the live smoke test. The user runs the `fkd-drupal8` end-to-end test on another machine. Sortie 7b still writes the portable smoke-test script, with configurable fixture paths and a prerequisites preflight, but doesn't run it. The fixture entry criterion is removed.
 **Consequence**: the mission can complete without any live `Containerization` run. Everything in OQ-4's "never exercised live" list stays unverified until the user's run: the LaunchAgent-hosted VMs, the entitlement, 2.5GB streaming, the DDEV db credentials, and resolver behavior. The mission brief must not treat a green test suite as proof that the product works.
 
+### Resolved OQ-7: Build, host and test documentation for agents
+**Affected**: Sortie 7b
+**Decided**: 2026-09-13, user decision
+**Decision**: The last phase (Sortie 7b) commits updates to `AGENTS.md`, `CLAUDE.md` (new) and `README.md` that describe how to compile the `drupal` binary, sign it, install the host service, host a Drupal site, and run the tests (unit, manual service check, `fkd-drupal8` smoke script). The goal is that an agent on another machine can do all of it from the docs alone. This is folded into Sortie 7b Task 1b, not done ahead of time, so the docs cover `logs` (6b) and the manifest and `post_start` (7a).
+**Basis**: the user runs the live smoke test on another machine (OQ-6), and the docs are how that machine's agent learns to build and drive the binary.
+
 ## Summary
 
 | Metric | Value |
 |--------|-------|
 | Work units | 8 |
 | Total sorties | 10 |
-| Open questions | 0 (6 resolved in Decision Log) |
+| Open questions | 0 (7 resolved in Decision Log) |
 | Dependency structure | layers |
