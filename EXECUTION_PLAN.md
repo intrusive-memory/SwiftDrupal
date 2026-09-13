@@ -1,5 +1,9 @@
 ---
 type: execution-plan
+feature_name: OPERATION DROPLET SHIPYARD
+starting_point_commit: 1faa8fc6bbd6d73f04b0fd1f9a36edbf633e9ead
+mission_branch: mission/droplet-shipyard/01
+iteration: 1
 ---
 
 # EXECUTION_PLAN.md — SwiftDrupal
@@ -59,8 +63,8 @@ Sortie 7b's end-to-end smoke test proves the `drupal` binary can host a real Dru
 7. Write unit tests in `Tests/SwiftDrupalTests` covering: `ProjectConfig` YAML round-trip, project-name/hostname derivation (default and override cases), and `ExitCode` mapping.
 
 **Exit criteria**:
-- [ ] `swift build` succeeds with the new `swift-argument-parser` and YAML dependencies resolved.
-- [ ] `swift test` passes, including the new config round-trip, name/hostname derivation, exit-code, and output-format-resolver tests (`--json` flag and non-TTY auto-detection both exercised).
+- [ ] XcodeBuildMCP `swift_package_build` succeeds with the new `swift-argument-parser` and YAML dependencies resolved.
+- [ ] XcodeBuildMCP `swift_package_test` passes, including the new config round-trip, name/hostname derivation, exit-code, and output-format-resolver tests (`--json` flag and non-TTY auto-detection both exercised).
 - [ ] `Sources/SwiftDrupal/Config/ProjectConfig.swift` (or equivalent path) exists and defines the full MVP schema field set.
 - [ ] Running the built `drupal` binary with no arguments exits via the new `ArgumentParser` root command (not the old placeholder `print` statement).
 
@@ -82,8 +86,8 @@ Sortie 7b's end-to-end smoke test proves the `drupal` binary can host a real Dru
 6. Write tests using a mockable `ContainerService` covering: image-tag selection logic for both web and db containers, and bind-mount path construction.
 
 **Exit criteria**:
-- [ ] `swift build` succeeds.
-- [ ] `swift test` passes, including tests for image-tag selection, bind-mount-path construction, health-check polling/timeout logic, and environment-variable (`web_environment`) injection, all against a mock `ContainerService`.
+- [ ] XcodeBuildMCP `swift_package_build` succeeds.
+- [ ] XcodeBuildMCP `swift_package_test` passes, including tests for image-tag selection, bind-mount-path construction, health-check polling/timeout logic, and environment-variable (`web_environment`) injection, all against a mock `ContainerService`.
 - [ ] `ContainerService` protocol and both web/db spec builders exist in `Sources/SwiftDrupal/Container` and are covered by tests, without requiring a live `Containerization` runtime to execute the test suite.
 
 ---
@@ -104,8 +108,8 @@ Sortie 7b's end-to-end smoke test proves the `drupal` binary can host a real Dru
 6. Write unit tests for the responder's query-answering logic and for `/etc/hosts` line insertion/removal, exercised against a temporary file — never the real `/etc/hosts`.
 
 **Exit criteria**:
-- [ ] `swift build` succeeds.
-- [ ] `swift test` passes, including responder query-answering tests and hosts-file insertion/removal tests run against a temp file.
+- [ ] XcodeBuildMCP `swift_package_build` succeeds.
+- [ ] XcodeBuildMCP `swift_package_test` passes, including responder query-answering tests and hosts-file insertion/removal tests run against a temp file.
 - [ ] Both `HostnameStrategy` implementations exist behind the shared protocol, local-resolver is wired as the default, and the verify-then-fall-back-to-hosts path (task 5) is implemented and covered by a test that simulates resolver-verification failure and asserts the fallback strategy answers the query instead.
 
 ---
@@ -128,8 +132,8 @@ Sortie 7b's end-to-end smoke test proves the `drupal` binary can host a real Dru
 7. Implement `drupal config --json` / `drupal validate`: prints the fully resolved configuration, including any defaults applied, without starting anything.
 
 **Exit criteria**:
-- [ ] `swift build` succeeds.
-- [ ] `swift test` passes, including a test that `start` on an already-started project and `stop` on an already-stopped project both exit 0 (idempotency).
+- [ ] XcodeBuildMCP `swift_package_build` succeeds.
+- [ ] XcodeBuildMCP `swift_package_test` passes, including a test that `start` on an already-started project and `stop` on an already-stopped project both exit 0 (idempotency).
 - [ ] Each of `init`, `start`, `stop`, `restart`, `status`, `delete`, `config --json`/`validate` exists as a registered subcommand and emits JSON output when `--json` is passed or stdout is not a TTY.
 
 ---
@@ -148,8 +152,8 @@ Sortie 7b's end-to-end smoke test proves the `drupal` binary can host a real Dru
 4. Write tests covering command argument parsing and dump-piping logic against a fake/mock container-exec channel (no live database required).
 
 **Exit criteria**:
-- [ ] `swift build` succeeds.
-- [ ] `swift test` passes, including the mocked import/export piping tests.
+- [ ] XcodeBuildMCP `swift_package_build` succeeds.
+- [ ] XcodeBuildMCP `swift_package_test` passes, including the mocked import/export piping tests.
 - [ ] `import-db` and `export-db` exist as registered subcommands with JSON result output.
 
 ---
@@ -167,8 +171,8 @@ Sortie 7b's end-to-end smoke test proves the `drupal` binary can host a real Dru
 3. Write tests for `exec`/`ssh` covering TTY passthrough, exit-code propagation, and stream handling, against a mock `ContainerService` exec channel.
 
 **Exit criteria**:
-- [ ] `swift build` succeeds.
-- [ ] `swift test` passes, including `ExecCommandTests` and `SSHCommandTests` covering TTY passthrough, exit codes, and stream handling.
+- [ ] XcodeBuildMCP `swift_package_build` succeeds.
+- [ ] XcodeBuildMCP `swift_package_test` passes, including `ExecCommandTests` and `SSHCommandTests` covering TTY passthrough, exit codes, and stream handling.
 - [ ] `exec` and `ssh` exist as registered subcommands.
 
 ---
@@ -187,8 +191,8 @@ Sortie 7b's end-to-end smoke test proves the `drupal` binary can host a real Dru
 4. Write tests for the log-merging/interleaving logic (given two fake timestamped streams, assert output order and source tagging) and for the JSON-line schema's serialization.
 
 **Exit criteria**:
-- [ ] `swift build` succeeds.
-- [ ] `swift test` passes, including the log-interleaving-order test and the JSON-line schema test.
+- [ ] XcodeBuildMCP `swift_package_build` succeeds.
+- [ ] XcodeBuildMCP `swift_package_test` passes, including the log-interleaving-order test and the JSON-line schema test.
 - [ ] `logs` (with both TUI and JSON modes) exists as a registered subcommand.
 
 ---
@@ -209,8 +213,8 @@ Sortie 7b's end-to-end smoke test proves the `drupal` binary can host a real Dru
 3. Implement the minimal `post_start` extensibility point: a `post_start: [String]` config field listing shell commands run inside the web container after `start` succeeds.
 
 **Exit criteria**:
-- [ ] `swift build` succeeds.
-- [ ] `swift test` passes, including the manifest-emission test.
+- [ ] XcodeBuildMCP `swift_package_build` succeeds.
+- [ ] XcodeBuildMCP `swift_package_test` passes, including the manifest-emission test.
 - [ ] `--manifest`/`describe-commands` exists, lists every subcommand from Sorties 1, 2, 4, 5, 6a, 6b, and its output validates against `docs/schema/manifest.json`.
 - [ ] `post_start` config field exists and is executed inside the web container after a successful `start`.
 
@@ -229,7 +233,7 @@ Sortie 7b's end-to-end smoke test proves the `drupal` binary can host a real Dru
 2. Write an end-to-end smoke test exercising `init` → `import-db dbbackup/fkd-drupal8_live_2026-09-11T17-57-07_UTC_database.sql.gz` → `start` → `status` → `stop` → `delete` against the real `~/Projects/caffrey/fkd-drupal8` starting point (not a synthetic fresh Drupal site) — this is the mission's concrete proof that the `drupal` binary can host a real Drupal 11 site end to end. Assert the JSON output shape at each step. Document as a repeatable manual test script if a live `Containerization` runtime is required to execute it automatically.
 
 **Exit criteria**:
-- [ ] `swift build` succeeds.
+- [ ] XcodeBuildMCP `swift_package_build` succeeds.
 - [ ] `AGENTS.md` contains the "Config Schema", "Command Reference", and "Common Workflows" sections, each meeting the content requirements in Task 1.
 - [ ] The end-to-end smoke test (automated or documented manual script) exists on disk, names its steps explicitly (`init`, `import-db`, `start`, `status`, `stop`, `delete`), and targets the `~/Projects/caffrey/fkd-drupal8` fixture rather than a synthetic project.
 
@@ -254,7 +258,7 @@ Sortie 7b's end-to-end smoke test proves the `drupal` binary can host a real Dru
 
 **Agent Constraints**:
 - Maximum concurrent work units in any single layer: 3 (Group 3) — within the 4-sub-agent cap.
-- Every sortie in this plan carries a `swift build succeeds` exit criterion (this is a from-scratch Swift package with no pre-existing build-verified baseline), so there is no sortie that is purely research/docs work with zero build step. Under the current Workflow-based dispatch engine (`skill.md` § Orchestration Engine, `commands/execution.md` §2), each work unit's sortie chain is dispatched as its own `agent()` call and performs its own build/test verification as part of satisfying its exit criteria — there is no separate, permanently non-building "sub-agent" role distinct from a "supervising agent" the way the classic Task-dispatch model described. The supervisor itself never writes production code or runs builds on a sortie's behalf; it only dispatches and verifies.
+- Every sortie in this plan carries an XcodeBuildMCP `swift_package_build` exit criterion — never raw `swift build`/`swift test` — (this is a from-scratch Swift package with no pre-existing build-verified baseline), so there is no sortie that is purely research/docs work with zero build step. Under the current Workflow-based dispatch engine (`skill.md` § Orchestration Engine, `commands/execution.md` §2), each work unit's sortie chain is dispatched as its own `agent()` call and performs its own build/test verification as part of satisfying its exit criteria — there is no separate, permanently non-building "sub-agent" role distinct from a "supervising agent" the way the classic Task-dispatch model described. The supervisor itself never writes production code or runs builds on a sortie's behalf; it only dispatches and verifies.
 
 **Missed Opportunities**:
 - Sorties 6a (Exec/SSH) and 6b (Logs) touch disjoint files (`CLI/Commands/exec.swift`+`ssh.swift` vs. `Logging/*.swift`+`CLI/Commands/logs.swift`) and have no data dependency on each other — both only require Sortie 2's `ContainerService`. They are kept sequential here per the compound-sortie convention (`commands/execution.md` §2b: lettered sorties are ordered sub-sorties of one work unit), which shortens the critical path calculation but is a real, avoidable serialization. Splitting Dev Tools into two independent work units (dropping the 6a→6b ordering dependency) would shorten the critical path from 6 to 5 sorties and raise Layer 2's peak concurrency from 3 to 4 work units — still within the cap. Flagged rather than applied, since it changes work-unit boundaries rather than just sortie content; apply on user request via a follow-up `refine-parallelism` pass if desired.
