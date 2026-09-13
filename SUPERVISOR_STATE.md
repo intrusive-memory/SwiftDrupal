@@ -119,7 +119,7 @@ feature_name: OPERATION DROPLET SHIPYARD
 - Sortie type: code
 - Model: sonnet
 - Complexity score: 12
-- Attempt: 1 of 3
+- Attempt: 2 of 3
 - Isolation: none (main working tree, sole active sortie)
 - 6a last verified: commit 46da9ab merged as 262380d (Drupal.swift conflict resolved by supervisor); swift_package_test SUCCEEDED twice back-to-back (193 tests, 36 suites) to check signal-test flakiness
 - 6a notes: No TTY resize (ExecRequest has no resize hook). exec/ssh always forward stdin; TTY auto-detected from isatty(stdin); ssh always requests a pty. Real-signal tests: SIGUSR2 is used by ServiceTests, SIGUSR1/SIGWINCH by SSHCommandTests; a re-signal after guard cancel() kills the test runner (caused a 30-minute hang during 6a). ServiceTarget.swift maps service name to container id.
@@ -177,3 +177,5 @@ feature_name: OPERATION DROPLET SHIPYARD
 | 2026-09-13T22:15:06Z | Dev Tools | 6b | Isolation: main working tree | Sole active sortie |
 | 2026-09-13T22:18:06Z | Agent Contract | 7b | User decision: hold the live fkd-drupal8 smoke test; the user runs it on another machine. 7b writes a portable script only, not executed; fixture entry criterion removed | Recorded in EXECUTION_PLAN.md as OQ-6. Mission can complete with zero live Containerization runs; the brief must flag this |
 | 2026-09-13T22:20:14Z | Agent Contract | 7b | User decision: 7b commits AGENTS.md/CLAUDE.md (new)/README.md updates covering build + entitlement signing, host prerequisites (Apple container kernel), hosting a site, and running tests, so an agent on another machine can use the binary | Recorded as OQ-7 and folded into Sortie 7b Task 1b + exit criteria; deferred to last phase at user request so docs include 6b/7a |
+| 2026-09-13T22:27:17Z | Dev Tools | 6b | Attempt 1 → BACKOFF: supervisor swift_package_test FAILED (217/218). LogMergerTests.aFailingSourceFailsTheMergedStream got [] instead of ["before the failure"]; passed on filtered rerun | Real bug, not only a flaky test: LogMergeCoordinator.failed() finishes without flushing the reorder buffer, so lines held for the other source are dropped when a stream errors. Scheduling-dependent, so intermittent. Agent's 218-pass report was a lucky run |
+| 2026-09-13T22:27:17Z | Dev Tools | 6b | Attempt 2 dispatched (sonnet, main working tree) with the root cause and fix spelled out | Narrow fix; not 2+ failures, so no force-opus |
