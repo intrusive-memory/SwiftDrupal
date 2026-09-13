@@ -77,29 +77,46 @@ feature_name: OPERATION DROPLET SHIPYARD
 - Notes: Container IP not yet wired (Sortie 4 must pass ContainerService IP to coordinator.activate). New HostnameError enum not mapped to DrupalError exit codes. Design gap (in-process DNS responder dies when `start` exits) RESOLVED by OQ-3/OQ-4: the responder runs in the launchd-managed service, and IP wiring moves to Sortie 8.
 
 ### Host Service (launchd)
-- Work unit state: RUNNING
+- Work unit state: COMPLETED
 - Current sortie: 8 of 1
-- Sortie state: DISPATCHED
+- Sortie state: COMPLETED
 - Sortie type: code
 - Model: opus
 - Complexity score: 28
 - Attempt: 1 of 3
 - Isolation: none (main working tree, sole active sortie)
+- Last verified: commit 0e4fba2; supervisor re-ran swift_package_test SUCCEEDED (120 tests, 22 suites); grep criterion confirmed (constructors only in ServiceCommand.swift run path)
+- Notes: Label com.intrusive-memory.swiftdrupal.service. Socket ~/Library/Application Support/SwiftDrupal/service.sock (env SWIFTDRUPAL_SERVICE_SOCKET), 4-byte BE length + JSON. ExitCode serviceUnavailable = 14. ContainerService protocol unchanged; client adds startContainer(id:) -> ServiceStartOutcome, activateHostname/deactivateHostname/ping. Unresolved: live Containerization inside a LaunchAgent + virtualization entitlement never exercised; no IPC call timeouts; no TTY resize frame; LiveContainerService.exec ignores cancellation; `probe.drupal` reserved. AGENTS.md still says swift build/test (stale).
 
 ### Lifecycle Commands
-- Work unit state: NOT_STARTED
+- Work unit state: RUNNING
 - Current sortie: 4 of 1
-- Sortie state: PENDING
+- Sortie state: DISPATCHED
+- Sortie type: code
+- Model: opus
+- Complexity score: 16
+- Attempt: 1 of 3
+- Isolation: git worktree
 
 ### Database Import/Export
-- Work unit state: NOT_STARTED
+- Work unit state: RUNNING
 - Current sortie: 5 of 1
-- Sortie state: PENDING
+- Sortie state: DISPATCHED
+- Sortie type: code
+- Model: sonnet
+- Complexity score: 9
+- Attempt: 1 of 3
+- Isolation: git worktree
 
 ### Dev Tools (exec/ssh/logs)
-- Work unit state: NOT_STARTED
+- Work unit state: RUNNING
 - Current sortie: 6a of 2
-- Sortie state: PENDING
+- Sortie state: DISPATCHED
+- Sortie type: code
+- Model: sonnet
+- Complexity score: 12
+- Attempt: 1 of 3
+- Isolation: git worktree
 
 ### Agent-Friendly Contract, Manifest & Docs
 - Work unit state: NOT_STARTED
@@ -109,7 +126,6 @@ feature_name: OPERATION DROPLET SHIPYARD
 ## Active Agents
 | Work Unit | Sortie | Sortie State | Attempt | Model | Complexity Score | Task ID | Output File | Dispatched At |
 |-----------|--------|-------------|---------|-------|-----------------|---------|-------------|---------------|
-| Host Service (launchd) | 8 | DISPATCHED | 1/3 | opus | 28 | sortie-8-agent | background | 2026-09-13T20:38:39Z |
 
 ## Decisions Log
 | Timestamp | Work Unit | Sortie | Decision | Rationale |
@@ -137,3 +153,9 @@ feature_name: OPERATION DROPLET SHIPYARD
 | 2026-09-13T20:38:39Z | Host Service | 8 | Model: opus | Score 28 (turns 36-50 = 8, 6-10 files = +4, mixed machine/manual criteria = 2, establishes the IPC pattern for 4/5/6a/6b = 5, 6 dependents = 5, launchd/IPC/new tech = 4); force-opus (foundation + depth ≥5) |
 | 2026-09-13T20:38:39Z | Host Service | 8 | Isolation: main working tree, no worktree | Sole active sortie, so no parallel-agent race; avoids the systematic worktree base-commit defect seen on Sorties 2 and 3 |
 | 2026-09-13T20:38:39Z | Host Service | 8 | Atomicity risk flagged: 7 tasks spanning IPC, streaming, launchd install, and hostname ownership | Accepting single dispatch; a PARTIAL result gets a continuation rather than a re-plan |
+| 2026-09-13T20:54:23Z | Host Service | 8 | COMPLETED | Agent report + commit 0e4fba2 + supervisor swift_package_test SUCCEEDED, 120 tests / 22 suites; grep exit criterion confirmed; manual script present (not run, by design) |
+| 2026-09-13T20:54:23Z | — | — | Gate: Lifecycle, Database, Dev Tools unlocked (RUNNING) | Sole dependency Host Service COMPLETED |
+| 2026-09-13T20:54:23Z | Lifecycle | 4 | Model: opus | Score 16 (turns 36-50 = 8, 6-10 files = +4, 2 dependents = 2, system calls = 2) |
+| 2026-09-13T20:54:23Z | Database | 5 | Model: sonnet | Score 9 (turns 10-20 = 3, 3-5 files = +2, 2 dependents = 2, file I/O = 2) |
+| 2026-09-13T20:54:23Z | Dev Tools | 6a | Model: sonnet | Score 12 (turns 21-35 = 5, 3-5 files = +2, 3 dependents = 2, streaming TTY over IPC = 3) |
+| 2026-09-13T20:54:23Z | — | — | Layer 3 parallel dispatch uses git worktrees; each prompt pins the base commit and orders a reset if the worktree is based elsewhere | Known worktree base-commit defect (Sorties 2, 3). All three sorties register subcommands in CLI/Drupal.swift, so trivial merge conflicts are expected and resolved by the supervisor |
