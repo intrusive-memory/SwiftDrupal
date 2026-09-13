@@ -101,14 +101,16 @@ feature_name: OPERATION DROPLET SHIPYARD
 - Notes: `init` writes config; `config` only prints. `delete` removes db data dir by default (`--keep-data` opts out) — DESTRUCTIVE DEFAULT flagged for user. `start` rebuilds only on image change (php/env edits need delete+start). `stop`/`delete` always call deactivateHostname → GUI admin prompt if a hosts-fallback line exists. `status` exits 14 when service down. Shared types LifecycleEnvironment/LifecycleProjectOptions/LifecycleServiceClient; 7a should unify with 5/6a equivalents.
 
 ### Database Import/Export
-- Work unit state: RUNNING
+- Work unit state: COMPLETED
 - Current sortie: 5 of 1
-- Sortie state: DISPATCHED
+- Sortie state: COMPLETED
 - Sortie type: code
 - Model: sonnet
 - Complexity score: 9
 - Attempt: 1 of 3
 - Isolation: git worktree
+- Last verified: commit 70f9bab merged as e9e4ba9 (Drupal.swift subcommand-list conflict resolved by supervisor); swift_package_test SUCCEEDED (163 tests, 34 suites)
+- Notes: Added CZlib system-library target (OS libz, no new package dep) for streaming gzip. Credentials assumed DDEV default db/db/db — db spec builder sets none; unverified against live ddev-dbserver. `export-db` with no file writes status JSON to stderr (stdout carries SQL) — 7a audit must allow this. Corrupt gzip has no dedicated exit code. 2.5GB streaming unexercised live.
 
 ### Dev Tools (exec/ssh/logs)
 - Work unit state: RUNNING
@@ -164,3 +166,5 @@ feature_name: OPERATION DROPLET SHIPYARD
 | 2026-09-13T21:07:38Z | Lifecycle | 4 | COMPLETED | Agent report + merge d29f407 + supervisor swift_package_test SUCCEEDED, 147 tests / 28 suites |
 | 2026-09-13T21:07:38Z | — | — | Worktree base defect recurred on Sortie 4 (da79dec); agent reset to 03992db per prompt | Base-pin instruction works; keep it in every worktree dispatch |
 | 2026-09-13T21:07:38Z | Lifecycle | 4 | Flag to user: `drupal delete` removes database data by default | Plan said "and their volumes"; an agent-driven destructive default is risky — user may want opt-in |
+| 2026-09-13T21:09:34Z | Database | 5 | COMPLETED | Agent report + merge e9e4ba9 + supervisor swift_package_test SUCCEEDED, 163 tests / 34 suites |
+| 2026-09-13T21:09:34Z | Database | 5 | Merge conflict in CLI/Drupal.swift subcommand list resolved by supervisor (union of Sortie 4 + 5 entries) | Expected parallel-registration conflict; no logic change |
