@@ -26,6 +26,34 @@ public enum ExitCode: Int32, CaseIterable, Sendable, Codable {
     /// running containers or DNS in-process.
     case serviceUnavailable = 14
 
+    /// Stable machine-readable name (the case name).
+    public var name: String {
+        switch self {
+        case .success: "success"
+        case .failure: "failure"
+        case .invalidConfig: "invalidConfig"
+        case .platformUnavailable: "platformUnavailable"
+        case .containerFailedToStart: "containerFailedToStart"
+        case .healthCheckTimeout: "healthCheckTimeout"
+        case .serviceUnavailable: "serviceUnavailable"
+        }
+    }
+
+    /// One-line meaning, as published in the command manifest.
+    public var meaning: String {
+        switch self {
+        case .success: "The command succeeded (including idempotent no-ops)."
+        case .failure:
+            "Generic failure not covered by a specific class: e.g. a database client or dump utility exiting non-zero in import-db/export-db, a corrupt gzip stream, or a service install error."
+        case .invalidConfig:
+            "The project config is missing, unreadable, or invalid; or an argument names something that does not exist (unknown service, missing import file)."
+        case .platformUnavailable: "Containerization or the host platform cannot run containers (or the local terminal cannot be controlled)."
+        case .containerFailedToStart: "A web or database container failed to start, or a post_start command exited non-zero."
+        case .healthCheckTimeout: "A container started but did not become healthy within --timeout."
+        case .serviceUnavailable: "The drupal service is not reachable over its socket. Remedy: drupal service install."
+        }
+    }
+
     /// The equivalent ArgumentParser exit code.
     public var argumentParserExitCode: ArgumentParser.ExitCode {
         ArgumentParser.ExitCode(rawValue)

@@ -10,7 +10,7 @@ import Testing
 /// selects the gzip wrapper on the encode side), so tests exercise
 /// `GzipInflateStream` against a byte-for-byte real gzip fixture rather than
 /// a hand-rolled one.
-private func gzipCompress(_ data: Data) throws -> Data {
+func gzipCompress(_ data: Data) throws -> Data {
     var stream = z_stream()
     stream.zalloc = nil
     stream.zfree = nil

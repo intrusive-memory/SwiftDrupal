@@ -9,7 +9,12 @@ import Foundation
 public struct ImportDBCommand: AsyncParsableCommand {
     public static let configuration = CommandConfiguration(
         commandName: "import-db",
-        abstract: "Stream a SQL dump into the project's database container."
+        abstract: "Stream a SQL dump into the project's database container.",
+        discussion: """
+            The result document ({operation, containerId, file, compressed, bytesProcessed, exitStatus, success}) \
+            goes to stdout. A missing input file exits 10; an unreachable service exits 14; a non-zero exit from \
+            the database client, or a corrupt gzip stream, exits 1.
+            """
     )
 
     @Argument(
@@ -25,17 +30,19 @@ public struct ImportDBCommand: AsyncParsableCommand {
     public init() {}
 
     public func run() async throws {
-        let root = URL(fileURLWithPath: projectRoot ?? FileManager.default.currentDirectoryPath, isDirectory: true)
+        let environment = LifecycleEnvironment.current
+        let cwd = environment.currentDirectory()
+        let root = projectRoot.map { URL(fileURLWithPath: $0, isDirectory: true, relativeTo: cwd).standardizedFileURL } ?? cwd
         let projectName = DatabaseTransfer.resolveProjectName(projectRoot: root)
         let containerID = DatabaseTransfer.databaseContainerID(projectName: projectName)
 
-        let fileURL = URL(fileURLWithPath: file)
+        let fileURL = URL(fileURLWithPath: file, relativeTo: cwd).standardizedFileURL
         guard FileManager.default.fileExists(atPath: fileURL.path) else {
             throw DrupalError.invalidConfig("import file not found: \(fileURL.path)")
         }
         let compressed = try DatabaseTransfer.isGzipCompressed(fileURL)
 
-        let service = ServiceClientContainerService()
+        let service = environment.makeClient()
         let result = try await DatabaseTransfer.importDump(
             containerService: service,
             containerID: containerID,
@@ -43,9 +50,13 @@ public struct ImportDBCommand: AsyncParsableCommand {
             compressed: compressed
         )
 
-        DatabaseTransferOutput.emit(result, format: output.format())
+        DatabaseTransferOutput.emit(
+            result, format: output.format(using: environment.outputResolver), write: environment.writeOutput)
+        // The database client's own status is in the result document; the
+        // process exits with the documented generic failure code rather than
+        // the client's raw status, which could collide with drupal's 10-14.
         if result.exitStatus != 0 {
-            throw ArgumentParser.ExitCode(result.exitStatus)
+            throw ArgumentParser.ExitCode.failure
         }
     }
 }

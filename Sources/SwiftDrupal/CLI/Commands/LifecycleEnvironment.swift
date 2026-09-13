@@ -17,9 +17,18 @@ public protocol LifecycleServiceClient: ContainerService {
 
 extension ServiceClientContainerService: LifecycleServiceClient {}
 
-/// Everything a lifecycle command touches outside its own arguments, injectable
-/// through `LifecycleEnvironment.current` so tests never reach a real service
-/// socket, real containers, or a privileged file writer.
+/// Installs an interrupt handler for a streaming command and returns the
+/// function that cancels it. Live: `InterruptGuard.install` on SIGINT.
+public typealias InterruptGuardInstaller =
+    @Sendable (_ cleanup: @escaping @Sendable () -> Void, _ exit: @escaping @Sendable (Int32) -> Void) -> @Sendable () -> Void
+
+/// Everything a command touches outside its own arguments, injectable through
+/// `LifecycleEnvironment.current` so tests never reach a real service socket,
+/// real containers, a real terminal, or a privileged file writer.
+///
+/// Despite the name (it was introduced for the Sortie 4 lifecycle commands),
+/// every project command reads it: `init`/`config`/`validate`, the lifecycle
+/// commands, `import-db`/`export-db`, `exec`/`ssh`, and `logs`.
 public struct LifecycleEnvironment: Sendable {
     /// Builds the service client. Only called by commands that need the service
     /// (`init`, `config`, and `validate` never call it).
@@ -34,6 +43,16 @@ public struct LifecycleEnvironment: Sendable {
     public var stateRoot: URL
     public var healthChecker: HealthChecker
     public var healthProbe: HealthProbe
+    /// Receives each complete stderr document (a trailing newline is added by the sink).
+    /// `export-db` writes its status here when the dump itself goes to stdout.
+    public var writeError: @Sendable (String) -> Void
+    /// The local terminal `exec`/`ssh` put into raw mode.
+    public var makeTerminal: @Sendable () -> any TerminalController
+    /// stdin forwarded by `exec`/`ssh`.
+    public var execInput: any ExecInputSource
+    /// Receives remote stdout/stderr for `exec`/`ssh`.
+    public var execOutput: any ExecOutputSink
+    public var installInterruptGuard: InterruptGuardInstaller
 
     public init(
         makeClient: @escaping @Sendable () -> any LifecycleServiceClient,
@@ -43,7 +62,12 @@ public struct LifecycleEnvironment: Sendable {
         currentDirectory: @escaping @Sendable () -> URL = { URL.currentDirectory() },
         stateRoot: URL = DatabaseContainerSpecBuilder.defaultStateRoot,
         healthChecker: HealthChecker = HealthChecker(),
-        healthProbe: HealthProbe = .ddevHealthcheck
+        healthProbe: HealthProbe = .ddevHealthcheck,
+        writeError: @escaping @Sendable (String) -> Void = LifecycleEnvironment.standardError,
+        makeTerminal: @escaping @Sendable () -> any TerminalController = { PosixTerminalController() },
+        execInput: any ExecInputSource = FileHandleInputSource(),
+        execOutput: any ExecOutputSink = LiveExecOutputSink(),
+        installInterruptGuard: @escaping InterruptGuardInstaller = LifecycleEnvironment.liveInterruptGuard
     ) {
         self.makeClient = makeClient
         self.hostsFile = hostsFile
@@ -53,6 +77,20 @@ public struct LifecycleEnvironment: Sendable {
         self.stateRoot = stateRoot
         self.healthChecker = healthChecker
         self.healthProbe = healthProbe
+        self.writeError = writeError
+        self.makeTerminal = makeTerminal
+        self.execInput = execInput
+        self.execOutput = execOutput
+        self.installInterruptGuard = installInterruptGuard
+    }
+
+    public static let standardError: @Sendable (String) -> Void = { text in
+        FileHandle.standardError.write(Data((text + "\n").utf8))
+    }
+
+    public static let liveInterruptGuard: InterruptGuardInstaller = { cleanup, exit in
+        let token = InterruptGuard.install(cleanup: cleanup, exit: exit)
+        return { token.cancel() }
     }
 
     public static let standardOutput: @Sendable (String) -> Void = { text in

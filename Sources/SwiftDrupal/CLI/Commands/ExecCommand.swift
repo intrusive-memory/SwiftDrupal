@@ -7,8 +7,16 @@ import Foundation
 public struct ExecCommand: AsyncParsableCommand {
     public static let configuration = CommandConfiguration(
         commandName: "exec",
-        abstract: "Run a command inside a project container."
+        abstract: "Run a command inside a project container.",
+        discussion: """
+            Remote stdout/stderr are passed through unchanged and drupal exits with the remote command's exit \
+            code. There are no -i/-t flags: a pseudo-terminal is allocated (and the local terminal put in raw \
+            mode) exactly when stdin is a TTY. --json only changes how drupal's own errors are rendered. \
+            Interrupted by SIGINT, drupal restores the terminal and exits 130 (128+signal).
+            """
     )
+
+    @OptionGroup public var output: OutputOptions
 
     @Argument(help: "Container to run in: \"web\" or \"db\".")
     public var service: String
@@ -19,30 +27,35 @@ public struct ExecCommand: AsyncParsableCommand {
     public init() {}
 
     public func run() async throws {
+        let status = try await execute(environment: LifecycleEnvironment.current)
+        throw ArgumentParser.ExitCode(status)
+    }
+
+    /// Runs the command and returns the remote exit code.
+    public func execute(environment: LifecycleEnvironment) async throws -> Int32 {
         guard !command.isEmpty else {
             throw ValidationError("Provide a command to run after \"--\", e.g. `drupal exec web -- ls`.")
         }
 
-        let projectRoot = URL(filePath: FileManager.default.currentDirectoryPath, directoryHint: .isDirectory)
         let role = try ServiceTarget.role(for: service)
-        let id = try ServiceTarget.containerID(role: role, projectRoot: projectRoot)
+        let id = try ServiceTarget.containerID(role: role, projectRoot: environment.currentDirectory())
 
-        let terminal = PosixTerminalController()
+        let terminal = environment.makeTerminal()
         let runner = ExecSessionRunner(
-            containerService: ServiceClientContainerService(),
+            containerService: environment.makeClient(),
             terminal: terminal,
-            input: FileHandleInputSource(),
-            output: LiveExecOutputSink()
+            input: environment.execInput,
+            output: environment.execOutput
         )
 
-        let guardToken = InterruptGuard.install(cleanup: { terminal.restore() })
-        defer { guardToken.cancel() }
+        let cancelGuard = environment.installInterruptGuard({ terminal.restore() }, { Foundation.exit($0) })
+        defer { cancelGuard() }
 
         let result = try await runner.run(
             id: id,
             arguments: command,
             allocateTTY: terminal.isInteractiveTTY
         )
-        throw ArgumentParser.ExitCode(result.exitCode)
+        return result.exitCode
     }
 }

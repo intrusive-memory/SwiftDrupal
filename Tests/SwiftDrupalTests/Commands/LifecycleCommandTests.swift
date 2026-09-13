@@ -603,3 +603,134 @@ private func unreachableClient() -> ServiceClientContainerService {
         #expect(await fixture.invoke(["stop", "--json"], environment: environment) == 0)
     }
 }
+
+// MARK: - post_start
+
+@Suite struct PostStartTests {
+    /// Writes the default config with `commands` as `post_start`.
+    private func writePostStart(_ commands: [String], to fixture: LifecycleFixture) throws {
+        var config = ProjectConfig.default
+        config.postStart = commands
+        try config.write(projectRoot: fixture.projectRoot)
+    }
+
+    /// Scripts the mock: health checks pass; each `/bin/sh -c <command>` exits
+    /// with `exitCodes[command]` (default 0) and prints its command.
+    private func scriptExec(_ fixture: LifecycleFixture, exitCodes: [String: Int32] = [:]) async {
+        await fixture.mock.setExecHandler { _, request in
+            guard request.arguments.count == 3, request.arguments[0] == "/bin/sh" else { return ExecResult(exitCode: 0) }
+            request.output?(.stdout, Data("ran \(request.arguments[2])\n".utf8))
+            return ExecResult(exitCode: exitCodes[request.arguments[2]] ?? 0)
+        }
+    }
+
+    private func postStartCalls(_ fixture: LifecycleFixture) async -> [MockContainerService.Call] {
+        await fixture.mock.calls.filter {
+            if case .exec(_, let arguments) = $0 { arguments.first == "/bin/sh" } else { false }
+        }
+    }
+
+    @Test func runsEachCommandInOrderInTheWebContainerAfterStart() async throws {
+        let fixture = try LifecycleFixture()
+        try writePostStart(["composer install", "drush cr", "drush uli"], to: fixture)
+        await scriptExec(fixture)
+
+        #expect(await fixture.invoke(["start", "--json"]) == 0)
+        let report = try fixture.decodeLast(LifecycleReport.self)
+        let postStart = try #require(report.postStart)
+        #expect(!postStart.failed)
+        #expect(postStart.containerId == "site-web")
+        #expect(postStart.commands.map(\.command) == ["composer install", "drush cr", "drush uli"])
+        #expect(postStart.commands.map(\.index) == [0, 1, 2])
+        #expect(postStart.commands.allSatisfy { $0.succeeded && $0.exitCode == 0 })
+        #expect(postStart.commands[1].output == "ran drush cr\n")
+        #expect(postStart.skipped.isEmpty)
+
+        let calls = await fixture.mock.calls
+        #expect(await postStartCalls(fixture) == [
+            .exec("site-web", ["/bin/sh", "-c", "composer install"]),
+            .exec("site-web", ["/bin/sh", "-c", "drush cr"]),
+            .exec("site-web", ["/bin/sh", "-c", "drush uli"]),
+        ])
+        // Only after both containers were started.
+        let firstPostStart = try #require(calls.firstIndex(of: .exec("site-web", ["/bin/sh", "-c", "composer install"])))
+        let webStart = try #require(calls.firstIndex(of: .start("site-web")))
+        #expect(webStart < firstPostStart)
+    }
+
+    @Test func stopsAtTheFirstFailureReportsItAndExitsTwelve() async throws {
+        let fixture = try LifecycleFixture()
+        try writePostStart(["first", "second", "third", "fourth"], to: fixture)
+        await scriptExec(fixture, exitCodes: ["second": 2])
+
+        #expect(await fixture.invoke(["start", "--json"]) == SwiftDrupal.ExitCode.containerFailedToStart.rawValue)
+        let report = try fixture.decodeLast(LifecycleReport.self)
+        let postStart = try #require(report.postStart)
+        #expect(postStart.failed)
+        #expect(postStart.commands.map(\.command) == ["first", "second"])
+        #expect(postStart.commands.last?.exitCode == 2)
+        #expect(postStart.commands.last?.succeeded == false)
+        #expect(postStart.skipped == ["third", "fourth"])
+        #expect(report.state == .running)
+        #expect(await postStartCalls(fixture).count == 2)
+
+        let error = try #require(report.postStartError)
+        #expect(error.exitCode == .containerFailedToStart)
+        #expect(error.message.contains("`second`"))
+        #expect(error.message.contains("exited 2"))
+    }
+
+    @Test func restartAlsoRunsPostStartAndExitsTwelveOnFailure() async throws {
+        let fixture = try LifecycleFixture()
+        try writePostStart(["boom"], to: fixture)
+        await scriptExec(fixture, exitCodes: ["boom": 1])
+        #expect(await fixture.invoke(["restart", "--json"]) == 12)
+        let report = try fixture.decodeLast(RestartReport.self)
+        #expect(report.start.postStart?.failed == true)
+    }
+
+    @Test func runsOnEveryStartIncludingIdempotentRepeats() async throws {
+        let fixture = try LifecycleFixture()
+        try writePostStart(["drush cr"], to: fixture)
+        await scriptExec(fixture)
+        #expect(await fixture.invoke(["start"]) == 0)
+        #expect(await fixture.invoke(["start"]) == 0)
+        #expect(await postStartCalls(fixture).count == 2)
+    }
+
+    @Test func noPostStartMeansNoExtraExecAndNoReportKey() async throws {
+        let fixture = try LifecycleFixture()
+        await scriptExec(fixture)
+        #expect(await fixture.invoke(["start", "--json"]) == 0)
+        #expect(try fixture.decodeLast(LifecycleReport.self).postStart == nil)
+        #expect(!fixture.output.last.contains("postStart"))
+        #expect(await postStartCalls(fixture).isEmpty)
+    }
+
+    @Test func outputIsTruncatedToTheTail() async throws {
+        let fixture = try LifecycleFixture()
+        try writePostStart(["noisy"], to: fixture)
+        let chunk = Data(repeating: UInt8(ascii: "a"), count: PostStartReport.outputLimit)
+        await fixture.mock.setExecHandler { _, request in
+            guard request.arguments.first == "/bin/sh" else { return ExecResult(exitCode: 0) }
+            request.output?(.stdout, chunk)
+            request.output?(.stderr, Data("tail".utf8))
+            return ExecResult(exitCode: 0)
+        }
+        #expect(await fixture.invoke(["start"]) == 0)
+        let result = try #require(try fixture.decodeLast(LifecycleReport.self).postStart?.commands.first)
+        #expect(result.outputTruncated)
+        #expect(result.output.utf8.count == PostStartReport.outputLimit)
+        #expect(result.output.hasSuffix("tail"))
+    }
+
+    @Test func serviceLossDuringPostStartExitsFourteen() async throws {
+        let fixture = try LifecycleFixture()
+        try writePostStart(["drush cr"], to: fixture)
+        await fixture.mock.setExecHandler { _, request in
+            if request.arguments.first == "/bin/sh" { throw DrupalError.serviceUnavailable("gone") }
+            return ExecResult(exitCode: 0)
+        }
+        #expect(await fixture.invoke(["start"]) == 14)
+    }
+}

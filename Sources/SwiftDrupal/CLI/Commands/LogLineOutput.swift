@@ -61,10 +61,15 @@ public enum LogLineJSON {
 
 /// Writes one compact JSON object per line to stdout.
 public struct JSONLogLineSink: LogLineSink {
-    public init() {}
+    /// Receives one rendered line; the sink adds the trailing newline.
+    public let writeLine: @Sendable (String) -> Void
+
+    public init(writeLine: @escaping @Sendable (String) -> Void = LifecycleEnvironment.standardOutput) {
+        self.writeLine = writeLine
+    }
 
     public func write(_ entry: SourcedLogLine) {
-        FileHandle.standardOutput.write(Data((LogLineJSON.encode(entry) + "\n").utf8))
+        writeLine(LogLineJSON.encode(entry))
     }
 }
 
@@ -93,12 +98,15 @@ public enum LogLineTUI {
 /// Writes plain, colorized-by-source scrolling lines to stdout.
 public struct TUILogLineSink: LogLineSink {
     public let colorEnabled: Bool
+    /// Receives one rendered line; the sink adds the trailing newline.
+    public let writeLine: @Sendable (String) -> Void
 
-    public init(colorEnabled: Bool) {
+    public init(colorEnabled: Bool, writeLine: @escaping @Sendable (String) -> Void = LifecycleEnvironment.standardOutput) {
         self.colorEnabled = colorEnabled
+        self.writeLine = writeLine
     }
 
     public func write(_ entry: SourcedLogLine) {
-        FileHandle.standardOutput.write(Data((LogLineTUI.render(entry, colorEnabled: colorEnabled) + "\n").utf8))
+        writeLine(LogLineTUI.render(entry, colorEnabled: colorEnabled))
     }
 }

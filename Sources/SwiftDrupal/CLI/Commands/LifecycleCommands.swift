@@ -45,6 +45,13 @@ extension LifecycleReport {
         if let removedDataDirectories, !removedDataDirectories.isEmpty {
             lines.append("Removed data: \(removedDataDirectories.joined(separator: ", "))")
         }
+        if let postStart {
+            for result in postStart.commands {
+                lines.append("post_start: \(result.command) -> exit \(result.exitCode)")
+                if !result.succeeded, !result.output.isEmpty { lines.append(result.output) }
+            }
+            for skipped in postStart.skipped { lines.append("post_start: \(skipped) -> skipped") }
+        }
         if command == "start" { lines.append("URL: \(url)") }
         return lines.joined(separator: "\n")
     }
@@ -54,7 +61,12 @@ public struct StartCommand: AsyncParsableCommand {
     public static let configuration = CommandConfiguration(
         commandName: "start",
         abstract: "Create (if needed) and start the project's containers in the drupal service, and wait for health.",
-        discussion: "Idempotent: starting a running project succeeds. Containers keep running after this command exits."
+        discussion: """
+            Idempotent: starting a running project succeeds. Containers keep running after this command exits. \
+            After the containers are up, each post_start command from the config runs in order inside the web \
+            container (/bin/sh -c, in /var/www/html), on every start; the first non-zero exit stops the rest, \
+            is reported under postStart in the output, and makes start exit 12.
+            """
     )
 
     @OptionGroup public var output: OutputOptions
@@ -67,6 +79,7 @@ public struct StartCommand: AsyncParsableCommand {
         let environment = start.applying(to: LifecycleEnvironment.current)
         let report = try await execute(environment: environment)
         try LifecycleOutput.emit(report, options: output, environment: environment) { report.textSummary }
+        if let error = report.postStartError { throw error }
     }
 
     public func execute(environment: LifecycleEnvironment) async throws -> LifecycleReport {
@@ -118,6 +131,7 @@ public struct RestartCommand: AsyncParsableCommand {
         try LifecycleOutput.emit(report, options: output, environment: environment) {
             report.stop.textSummary + "\n" + report.start.textSummary
         }
+        if let error = report.start.postStartError { throw error }
     }
 
     public func execute(environment: LifecycleEnvironment) async throws -> RestartReport {

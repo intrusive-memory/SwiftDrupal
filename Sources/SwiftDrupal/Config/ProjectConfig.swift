@@ -24,6 +24,12 @@ public struct ProjectConfig: Codable, Equatable, Sendable {
     public var database: DatabaseConfig
     /// `KEY=value` entries injected into the web container. Defaults to `[]` when omitted.
     public var webEnvironment: [String]
+    /// Shell commands run, in order, inside the web container after every
+    /// successful `drupal start` (each as `/bin/sh -c <command>`, working
+    /// directory `/var/www/html`). Execution stops at the first command that
+    /// exits non-zero, and `start` then exits 12 (`containerFailedToStart`).
+    /// Defaults to `[]` when omitted.
+    public var postStart: [String]
 
     enum CodingKeys: String, CodingKey {
         case name
@@ -32,6 +38,7 @@ public struct ProjectConfig: Codable, Equatable, Sendable {
         case webserverType = "webserver_type"
         case database
         case webEnvironment = "web_environment"
+        case postStart = "post_start"
     }
 
     public init(
@@ -40,7 +47,8 @@ public struct ProjectConfig: Codable, Equatable, Sendable {
         phpVersion: String,
         webserverType: String,
         database: DatabaseConfig,
-        webEnvironment: [String] = []
+        webEnvironment: [String] = [],
+        postStart: [String] = []
     ) {
         self.name = name
         self.docroot = docroot
@@ -48,6 +56,7 @@ public struct ProjectConfig: Codable, Equatable, Sendable {
         self.webserverType = webserverType
         self.database = database
         self.webEnvironment = webEnvironment
+        self.postStart = postStart
     }
 
     public init(from decoder: Decoder) throws {
@@ -58,6 +67,7 @@ public struct ProjectConfig: Codable, Equatable, Sendable {
         webserverType = try container.decode(String.self, forKey: .webserverType)
         database = try container.decode(DatabaseConfig.self, forKey: .database)
         webEnvironment = try container.decodeIfPresent([String].self, forKey: .webEnvironment) ?? []
+        postStart = try container.decodeIfPresent([String].self, forKey: .postStart) ?? []
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -68,6 +78,7 @@ public struct ProjectConfig: Codable, Equatable, Sendable {
         try container.encode(webserverType, forKey: .webserverType)
         try container.encode(database, forKey: .database)
         try container.encode(webEnvironment, forKey: .webEnvironment)
+        try container.encode(postStart, forKey: .postStart)
     }
 
     /// MVP defaults, matching the example in the v1.0 requirements.

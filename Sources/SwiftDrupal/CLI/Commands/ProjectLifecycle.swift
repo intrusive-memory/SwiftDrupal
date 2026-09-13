@@ -1,4 +1,5 @@
 import Foundation
+import Synchronization
 
 /// Aggregate state of a project's containers.
 public enum ProjectState: String, Codable, Sendable {
@@ -74,6 +75,42 @@ public struct LifecycleReport: Codable, Equatable, Sendable {
     /// `delete` only: persistent data directories removed from the host.
     public var removedDataDirectories: [String]?
     public var warnings: [String]
+    /// `start` only, and only when the config lists `post_start` commands.
+    public var postStart: PostStartReport?
+
+    /// The error `start`/`restart` exit with after emitting this report, when a
+    /// `post_start` command failed.
+    public var postStartError: DrupalError? {
+        guard let postStart, let failed = postStart.commands.last, !failed.succeeded else { return nil }
+        return .containerFailedToStart(
+            "post_start command \(failed.index + 1) of \(postStart.commands.count + postStart.skipped.count) (`\(failed.command)`) exited \(failed.exitCode) in \(postStart.containerId)")
+    }
+}
+
+/// Outcome of the config's `post_start` commands.
+public struct PostStartReport: Codable, Equatable, Sendable {
+    /// One command's run.
+    public struct CommandResult: Codable, Equatable, Sendable {
+        /// Zero-based position in `post_start`.
+        public var index: Int
+        public var command: String
+        public var exitCode: Int32
+        public var succeeded: Bool
+        /// Combined stdout and stderr, truncated to the last `PostStartReport.outputLimit` bytes.
+        public var output: String
+        public var outputTruncated: Bool
+    }
+
+    /// The web container the commands ran in.
+    public var containerId: String
+    /// Commands that ran, in order. The last entry is the failure when `failed` is true.
+    public var commands: [CommandResult]
+    /// Commands not run because an earlier one failed.
+    public var skipped: [String]
+    public var failed: Bool
+
+    /// Bytes of output kept per command.
+    public static let outputLimit = 64 * 1024
 }
 
 /// Result of `restart`.
@@ -174,8 +211,40 @@ public struct ProjectLifecycle: Sendable {
             command: "start", project: project.name, projectRoot: project.root.path(percentEncoded: false),
             hostname: project.hostname, url: project.url, state: ProjectState(reports.map(\.state)),
             changed: reports.contains(where: \.changed) || warnings.contains(where: { $0.hasPrefix("Recreated ") }),
-            containers: reports, hostnameActivation: activation, removedDataDirectories: nil, warnings: warnings)
+            containers: reports, hostnameActivation: activation, removedDataDirectories: nil, warnings: warnings,
+            postStart: try await runPostStart())
     }
+
+    /// Runs `post_start` in the web container, in order, stopping at the first
+    /// non-zero exit. Returns nil when the config lists no commands. A thrown
+    /// error (e.g. the service became unreachable) propagates unchanged.
+    func runPostStart() async throws -> PostStartReport? {
+        let commands = project.config.postStart
+        guard !commands.isEmpty else { return nil }
+        let id = project.webSpec.id
+        var results: [PostStartReport.CommandResult] = []
+        for (index, command) in commands.enumerated() {
+            let buffer = PostStartOutputBuffer(limit: PostStartReport.outputLimit)
+            let request = ExecRequest(
+                arguments: Self.postStartArguments(for: command),
+                workingDirectory: WebContainerSpecBuilder.projectMountPath,
+                output: { _, data in buffer.append(data) })
+            let result = try await client.exec(id: id, request)
+            let (output, truncated) = buffer.contents
+            results.append(
+                .init(
+                    index: index, command: command, exitCode: result.exitCode, succeeded: result.succeeded,
+                    output: output, outputTruncated: truncated))
+            if !result.succeeded {
+                return PostStartReport(
+                    containerId: id, commands: results, skipped: Array(commands[(index + 1)...]), failed: true)
+            }
+        }
+        return PostStartReport(containerId: id, commands: results, skipped: [], failed: false)
+    }
+
+    /// The exec argument vector for one `post_start` entry.
+    public static func postStartArguments(for command: String) -> [String] { ["/bin/sh", "-c", command] }
 
     // MARK: stop
 
@@ -195,7 +264,7 @@ public struct ProjectLifecycle: Sendable {
             command: "stop", project: project.name, projectRoot: project.root.path(percentEncoded: false),
             hostname: project.hostname, url: project.url, state: ProjectState(reports.map(\.state)),
             changed: reports.contains(where: \.changed), containers: reports, hostnameActivation: nil,
-            removedDataDirectories: nil, warnings: warnings)
+            removedDataDirectories: nil, warnings: warnings, postStart: nil)
     }
 
     // MARK: delete
@@ -230,7 +299,7 @@ public struct ProjectLifecycle: Sendable {
             command: "delete", project: project.name, projectRoot: project.root.path(percentEncoded: false),
             hostname: project.hostname, url: project.url, state: .stopped,
             changed: reports.contains(where: \.changed) || !removed.isEmpty, containers: reports,
-            hostnameActivation: nil, removedDataDirectories: removed, warnings: warnings)
+            hostnameActivation: nil, removedDataDirectories: removed, warnings: warnings, postStart: nil)
     }
 
     /// Host directories of persistent mounts that live under the state root.
@@ -303,5 +372,27 @@ public struct ProjectLifecycle: Sendable {
             project: project.name, projectRoot: project.root.path(percentEncoded: false), hostname: project.hostname,
             url: project.url, state: state, containers: reports, webIPAddress: webIP, hostsFileAddress: hostsAddress,
             service: service, config: try ResolvedConfigReport(project: project), warnings: warnings)
+    }
+}
+
+/// Keeps the tail of a `post_start` command's combined output.
+final class PostStartOutputBuffer: Sendable {
+    private let limit: Int
+    private let state = Mutex<(data: Data, truncated: Bool)>((Data(), false))
+
+    init(limit: Int) { self.limit = limit }
+
+    func append(_ chunk: Data) {
+        state.withLock { state in
+            state.data.append(chunk)
+            if state.data.count > limit {
+                state.data = Data(state.data.suffix(limit))
+                state.truncated = true
+            }
+        }
+    }
+
+    var contents: (String, Bool) {
+        state.withLock { (String(decoding: $0.data, as: UTF8.self), $0.truncated) }
     }
 }

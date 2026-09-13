@@ -7,8 +7,9 @@ import Foundation
 /// Root command for the `drupal` binary.
 ///
 /// Later sorties register their subcommands by adding them to
-/// `configuration.subcommands`. Invoked with no arguments, the root command
-/// prints its help text and exits 0.
+/// `configuration.subcommands`; the command manifest (`--manifest`,
+/// `describe-commands`) picks them up automatically. Invoked with no
+/// arguments, the root command prints its help text and exits 0.
 public struct Drupal: AsyncParsableCommand {
     public static let version = "0.1.0"
 
@@ -27,10 +28,20 @@ public struct Drupal: AsyncParsableCommand {
             ExecCommand.self, SSHCommand.self,
             // Sortie 6b: logs
             LogsCommand.self,
+            // Sortie 7a: agent contract
+            DescribeCommandsCommand.self,
         ]
     )
 
+    @Flag(name: .customLong("manifest"), help: "Print the machine-readable command manifest as JSON (same as `drupal describe-commands`).")
+    public var manifest = false
+
     public init() {}
+
+    public func run() async throws {
+        guard manifest else { throw CleanExit.helpRequest(self) }
+        LifecycleEnvironment.current.writeOutput(try CommandManifest.jsonString())
+    }
 
     /// Entry point used by the `drupal` executable.
     ///
@@ -49,13 +60,41 @@ public struct Drupal: AsyncParsableCommand {
             } else {
                 try command.run()
             }
-        } catch let error as DrupalError {
-            let format = OutputFormatResolver.live.resolve(jsonFlag: arguments.contains("--json"))
-            FileHandle.standardError.write(Data((errorOutput(for: error, format: format) + "\n").utf8))
-            Foundation.exit(error.exitCode.rawValue)
         } catch {
+            let format = OutputFormatResolver.live.resolve(jsonFlag: jsonFlagPresent(in: arguments))
+            if let rendered = renderedError(for: error, format: format) {
+                FileHandle.standardError.write(Data((rendered.text + "\n").utf8))
+                Foundation.exit(rendered.status)
+            }
             exit(withError: error)
         }
+    }
+
+    /// Whether `--json` appears among drupal's own arguments (before a `--`
+    /// terminator, after which arguments belong to a remote command).
+    public static func jsonFlagPresent(in arguments: [String]) -> Bool {
+        arguments.prefix(while: { $0 != "--" }).contains("--json")
+    }
+
+    /// The stderr text and exit status for a failed command, or nil when
+    /// ArgumentParser's own handling applies (help/version output, a text-mode
+    /// usage error, or an `ExitCode` thrown to pass a remote status through).
+    ///
+    /// `DrupalError`s always render (JSON or text) with their documented code.
+    /// In JSON mode every other error also renders as the `ErrorReport`
+    /// envelope: `usageError` (64) for parse/validation failures, `failure` (1)
+    /// for anything else, so no command prints a bare Swift error under JSON.
+    public static func renderedError(for error: Error, format: OutputFormat) -> (status: Int32, text: String)? {
+        if let drupalError = error as? DrupalError {
+            return (drupalError.exitCode.rawValue, errorOutput(for: drupalError, format: format))
+        }
+        guard format == .json, !(error is ArgumentParser.ExitCode) else { return nil }
+        let status = exitCode(for: error)
+        guard status != .success else { return nil }
+        let name = status == .validationFailure ? CommandManifest.usageErrorName : SwiftDrupal.ExitCode.failure.name
+        let report = ErrorReport(
+            error: .init(code: name, exitCode: status.rawValue, message: message(for: error), remedy: nil))
+        return (status.rawValue, report.jsonString())
     }
 
     /// Rendered stderr text for a `DrupalError`: the JSON `ErrorReport` in JSON

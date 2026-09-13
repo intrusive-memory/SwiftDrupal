@@ -46,6 +46,20 @@ import Testing
         #expect(decoded.phpVersion == "8.0")
     }
 
+    @Test func postStartRoundTripsThroughYAMLAndDefaultsToEmpty() throws {
+        #expect(try ProjectConfig(yaml: Self.mvpYAML).postStart == [])
+        var config = ProjectConfig.default
+        config.postStart = ["composer install", "drush cr -y", "echo \"a: b\" && true"]
+        let yaml = try config.yamlString()
+        #expect(yaml.contains("post_start:"))
+        let decoded = try ProjectConfig(yaml: yaml)
+        #expect(decoded.postStart == config.postStart)
+        #expect(decoded == config)
+
+        let handWritten = Self.mvpYAML + "\npost_start:\n  - drush updb -y\n  - drush cr\n"
+        #expect(try ProjectConfig(yaml: handWritten).postStart == ["drush updb -y", "drush cr"])
+    }
+
     @Test func webEnvironmentDefaultsToEmptyWhenOmitted() throws {
         let yaml = Self.mvpYAML.replacingOccurrences(of: "web_environment: []", with: "")
         #expect(try ProjectConfig(yaml: yaml).webEnvironment == [])

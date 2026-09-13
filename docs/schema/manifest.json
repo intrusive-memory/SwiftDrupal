@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/intrusive-memory/SwiftDrupal/docs/schema/manifest.json",
+  "title": "drupal command manifest",
+  "description": "Shape of the JSON printed by `drupal --manifest` and `drupal describe-commands` (schemaVersion 1). Built from ArgumentParser introspection, so every registered subcommand appears. Optional keys are omitted when they have no value.",
+  "type": "object",
+  "required": ["schemaVersion", "tool", "invocations", "jsonOutput", "exitCodes", "exitCodeNotes", "rootArguments", "commands"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": { "type": "integer", "enum": [1] },
+    "tool": {
+      "type": "object",
+      "required": ["name", "version", "abstract"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "version": { "type": "string" },
+        "abstract": { "type": "string" }
+      }
+    },
+    "invocations": { "type": "array", "items": { "type": "string" } },
+    "jsonOutput": {
+      "type": "object",
+      "required": ["flag", "automaticWhenStdoutIsNotATTY", "description", "errorEnvelope"],
+      "additionalProperties": false,
+      "properties": {
+        "flag": { "type": "string" },
+        "automaticWhenStdoutIsNotATTY": { "type": "boolean" },
+        "description": { "type": "string" },
+        "errorEnvelope": { "type": "string" }
+      }
+    },
+    "exitCodes": { "type": "array", "items": { "$ref": "#/$defs/exitCode" } },
+    "exitCodeNotes": { "type": "array", "items": { "type": "string" } },
+    "rootArguments": { "type": "array", "items": { "$ref": "#/$defs/argument" } },
+    "commands": { "type": "array", "items": { "$ref": "#/$defs/command" } }
+  },
+  "$defs": {
+    "exitCode": {
+      "type": "object",
+      "required": ["code", "name", "meaning", "source"],
+      "additionalProperties": false,
+      "properties": {
+        "code": { "type": "integer" },
+        "name": { "type": "string" },
+        "meaning": { "type": "string" },
+        "source": { "type": "string", "enum": ["drupal", "argument-parser"] }
+      }
+    },
+    "command": {
+      "type": "object",
+      "required": ["name", "commandName", "abstract", "aliases", "hidden", "subcommands", "arguments", "notes"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "description": "Full path below the tool, e.g. \"service install\"." },
+        "commandName": { "type": "string" },
+        "parent": { "type": "string", "description": "Path of the parent command; omitted for top-level commands." },
+        "abstract": { "type": "string" },
+        "discussion": { "type": "string" },
+        "aliases": { "type": "array", "items": { "type": "string" } },
+        "hidden": { "type": "boolean" },
+        "subcommands": { "type": "array", "items": { "type": "string" } },
+        "arguments": { "type": "array", "items": { "$ref": "#/$defs/argument" } },
+        "requiresService": { "type": "boolean", "description": "True when the command exits 14 if the service is unreachable. Omitted when the command publishes no annotation." },
+        "notes": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "argument": {
+      "type": "object",
+      "required": ["kind", "names", "isRepeating", "required", "hidden", "parsingStrategy"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "type": "string", "enum": ["positional", "option", "flag"] },
+        "names": { "type": "array", "items": { "type": "string" }, "description": "Spellings such as \"--follow\" and \"-f\". Empty for positionals." },
+        "preferredName": { "type": "string" },
+        "valueName": { "type": "string" },
+        "type": { "type": "string", "description": "Swift value type, e.g. String, Int, UInt16, Bool, [String]." },
+        "isRepeating": { "type": "boolean" },
+        "required": { "type": "boolean" },
+        "defaultValue": { "type": "string" },
+        "allowedValues": { "type": "array", "items": { "type": "string" } },
+        "help": { "type": "string" },
+        "discussion": { "type": "string" },
+        "hidden": { "type": "boolean" },
+        "parsingStrategy": { "type": "string" }
+      }
+    }
+  }
+}

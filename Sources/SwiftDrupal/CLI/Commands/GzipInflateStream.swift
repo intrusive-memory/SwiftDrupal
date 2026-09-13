@@ -15,6 +15,8 @@ final class GzipInflateStream {
     enum InflateError: Error, CustomStringConvertible, Equatable {
         case initFailed(Int32)
         case inflateFailed(Int32, String)
+        /// Input ended before the gzip trailer: the file is truncated.
+        case truncated
 
         var description: String {
             switch self {
@@ -22,6 +24,8 @@ final class GzipInflateStream {
                 "zlib inflateInit2 failed (code \(code))"
             case .inflateFailed(let code, let message):
                 "zlib inflate failed (code \(code)): \(message)"
+            case .truncated:
+                "gzip input ended before the end of the compressed stream (truncated file?)"
             }
         }
     }

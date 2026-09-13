@@ -8,12 +8,19 @@ import Foundation
 public struct SSHCommand: AsyncParsableCommand {
     public static let configuration = CommandConfiguration(
         commandName: "ssh",
-        abstract: "Open an interactive shell in a project container (default: web)."
+        abstract: "Open an interactive shell in a project container (default: web).",
+        discussion: """
+            Always requests a pseudo-terminal; the local terminal is put in raw mode only when stdin is a TTY. \
+            There are no -i/-t flags. drupal exits with the shell's exit code. --json only changes how drupal's \
+            own errors are rendered. Interrupted by SIGINT, drupal restores the terminal and exits 130.
+            """
     )
 
     /// Runs the guest's login shell, falling back to `/bin/sh` if `$SHELL`
     /// isn't set inside the container image.
     public static let loginShellCommand = ["/bin/sh", "-c", "exec \"${SHELL:-/bin/sh}\" -l"]
+
+    @OptionGroup public var output: OutputOptions
 
     @Argument(help: "Container to open a shell in: \"web\" or \"db\" (default: web).")
     public var service: String?
@@ -21,30 +28,35 @@ public struct SSHCommand: AsyncParsableCommand {
     public init() {}
 
     public func run() async throws {
-        let projectRoot = URL(filePath: FileManager.default.currentDirectoryPath, directoryHint: .isDirectory)
-        let role = try ServiceTarget.role(for: service)
-        let id = try ServiceTarget.containerID(role: role, projectRoot: projectRoot)
+        let status = try await execute(environment: LifecycleEnvironment.current)
+        throw ArgumentParser.ExitCode(status)
+    }
 
-        let terminal = PosixTerminalController()
+    /// Runs the shell session and returns the remote exit code.
+    public func execute(environment: LifecycleEnvironment) async throws -> Int32 {
+        let role = try ServiceTarget.role(for: service)
+        let id = try ServiceTarget.containerID(role: role, projectRoot: environment.currentDirectory())
+
+        let terminal = environment.makeTerminal()
         let runner = ExecSessionRunner(
-            containerService: ServiceClientContainerService(),
+            containerService: environment.makeClient(),
             terminal: terminal,
-            input: FileHandleInputSource(),
-            output: LiveExecOutputSink()
+            input: environment.execInput,
+            output: environment.execOutput
         )
 
         // Raw mode is the CLI's job (Sortie 8 handoff): restored on normal
         // exit and thrown errors by `ExecSessionRunner`'s own `defer`, and
         // here on SIGINT too, since raw mode alone doesn't guarantee the
         // signal is suppressed before it's entered.
-        let guardToken = InterruptGuard.install(cleanup: { terminal.restore() })
-        defer { guardToken.cancel() }
+        let cancelGuard = environment.installInterruptGuard({ terminal.restore() }, { Foundation.exit($0) })
+        defer { cancelGuard() }
 
         let result = try await runner.run(
             id: id,
             arguments: Self.loginShellCommand,
             allocateTTY: true
         )
-        throw ArgumentParser.ExitCode(result.exitCode)
+        return result.exitCode
     }
 }

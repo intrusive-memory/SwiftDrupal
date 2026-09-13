@@ -12,7 +12,12 @@ import Foundation
 public struct LogsCommand: AsyncParsableCommand {
     public static let configuration = CommandConfiguration(
         commandName: "logs",
-        abstract: "Show container logs, merged by timestamp and tagged by source."
+        abstract: "Show container logs, merged by timestamp and tagged by source.",
+        discussion: """
+            On a TTY: colorized [web]/[db]-prefixed text (NO_COLOR disables color). With --json or a non-TTY \
+            stdout: one compact JSON object per line with keys timestamp, service, stream, message. Without \
+            --follow, prints the buffered lines and exits 0. With --follow, SIGINT stops streaming and exits 0.
+            """
     )
 
     @Argument(help: "Limit to one container: \"web\" or \"db\" (default: both, merged).")
@@ -26,10 +31,14 @@ public struct LogsCommand: AsyncParsableCommand {
     public init() {}
 
     public func run() async throws {
-        let projectRoot = URL(filePath: FileManager.default.currentDirectoryPath, directoryHint: .isDirectory)
+        try await execute(environment: LifecycleEnvironment.current)
+    }
+
+    public func execute(environment: LifecycleEnvironment) async throws {
+        let projectRoot = environment.currentDirectory()
         let roles = try Self.resolveRoles(service)
 
-        let containerService = ServiceClientContainerService()
+        let containerService = environment.makeClient()
         var sources: [ContainerRole: AsyncThrowingStream<LogLine, Error>] = [:]
         for role in roles {
             let id = try ServiceTarget.containerID(role: role, projectRoot: projectRoot)
@@ -40,12 +49,14 @@ public struct LogsCommand: AsyncParsableCommand {
 
         let noColor = ProcessInfo.processInfo.environment["NO_COLOR"] != nil
         let sink: any LogLineSink =
-            output.format() == .json ? JSONLogLineSink() : TUILogLineSink(colorEnabled: !noColor)
+            output.format(using: environment.outputResolver) == .json
+            ? JSONLogLineSink(writeLine: environment.writeOutput)
+            : TUILogLineSink(colorEnabled: !noColor, writeLine: environment.writeOutput)
 
         // Only needed in follow mode: without `--follow` the merge finishes
         // on its own once every source's buffered backlog is drained, well
         // within a command invocation's normal lifetime.
-        var guardToken: InterruptGuardToken?
+        var cancelGuard: (@Sendable () -> Void)?
         if follow {
             // Exit 0, unlike exec/ssh's 128+signal: `logs` isn't relaying a
             // remote process whose death-by-signal status should propagate,
@@ -54,9 +65,9 @@ public struct LogsCommand: AsyncParsableCommand {
             // no-op; `exit()` itself closes this process's sockets, which is
             // what tells the service to cancel the still-running server-side
             // log stream(s).
-            guardToken = InterruptGuard.install(cleanup: {}, exit: { _ in Foundation.exit(0) })
+            cancelGuard = environment.installInterruptGuard({}, { _ in Foundation.exit(0) })
         }
-        defer { guardToken?.cancel() }
+        defer { cancelGuard?() }
 
         let merged = LogMerger.merge(sources: sources)
         for try await entry in merged {

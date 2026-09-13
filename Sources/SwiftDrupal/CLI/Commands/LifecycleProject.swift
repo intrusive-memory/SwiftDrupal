@@ -133,6 +133,9 @@ public struct ResolvedConfigReport: Codable, Equatable, Sendable {
         if !config.webEnvironment.isEmpty {
             lines.append("web_environment: \(config.webEnvironment.joined(separator: ", "))")
         }
+        for command in config.postStart {
+            lines.append("post_start: \(command)")
+        }
         for container in containers {
             lines.append("\(container.role.rawValue): \(container.id) <- \(container.image)")
         }

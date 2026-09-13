@@ -154,6 +154,11 @@ public enum DatabaseTransfer {
                 counter.withLock { $0 += tail.count }
                 continuation.yield(tail)
             }
+            // A truncated .gz never reaches Z_STREAM_END; importing the
+            // partial SQL and reporting success would hide that.
+            if let inflater, !inflater.finished {
+                throw GzipInflateStream.InflateError.truncated
+            }
         }
 
         let request = ExecRequest(arguments: importClientArguments, stdin: stdin)
