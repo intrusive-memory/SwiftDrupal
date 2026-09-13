@@ -109,6 +109,7 @@ feature_name: OPERATION DROPLET SHIPYARD
 ## Active Agents
 | Work Unit | Sortie | Sortie State | Attempt | Model | Complexity Score | Task ID | Output File | Dispatched At |
 |-----------|--------|-------------|---------|-------|-----------------|---------|-------------|---------------|
+| Host Service (launchd) | 8 | DISPATCHED | 1/3 | opus | 28 | sortie-8-agent | background | 2026-09-13T20:38:39Z |
 
 ## Decisions Log
 | Timestamp | Work Unit | Sortie | Decision | Rationale |
