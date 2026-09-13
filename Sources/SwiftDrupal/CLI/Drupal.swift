@@ -21,6 +21,8 @@ public struct Drupal: AsyncParsableCommand {
             // Sortie 4: lifecycle
             InitCommand.self, StartCommand.self, StopCommand.self, RestartCommand.self, StatusCommand.self,
             DeleteCommand.self, ConfigCommand.self, ValidateCommand.self,
+            // Sortie 5: database
+            ImportDBCommand.self, ExportDBCommand.self,
         ]
     )
 
