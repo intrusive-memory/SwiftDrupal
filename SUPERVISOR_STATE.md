@@ -62,14 +62,16 @@ feature_name: OPERATION DROPLET SHIPYARD
 - Isolation: git worktree
 
 ### Networking / Hostname Resolution
-- Work unit state: RUNNING
+- Work unit state: COMPLETED
 - Current sortie: 3 of 1
-- Sortie state: DISPATCHED
+- Sortie state: COMPLETED
 - Sortie type: code
 - Model: opus
 - Complexity score: 14
 - Attempt: 1 of 3
 - Isolation: git worktree
+- Last verified: commit 018e53f fast-forwarded onto mission branch; supervisor re-ran swift_package_test SUCCEEDED (44 tests, 8 suites)
+- Notes: Container IP not yet wired (Sortie 4 must pass ContainerService IP to coordinator.activate). New HostnameError enum not mapped to DrupalError exit codes. OPEN DESIGN GAP: in-process DNS responder dies when `drupal start` exits — see Decisions Log.
 
 ### Lifecycle Commands
 - Work unit state: NOT_STARTED
@@ -95,7 +97,6 @@ feature_name: OPERATION DROPLET SHIPYARD
 | Work Unit | Sortie | Sortie State | Attempt | Model | Complexity Score | Task ID | Output File | Dispatched At |
 |-----------|--------|-------------|---------|-------|-----------------|---------|-------------|---------------|
 | Container Orchestration Core | 2 | DISPATCHED | 1/3 | opus | 21 | sortie-2-agent | worktree | 2026-09-13T18:37:00Z |
-| Networking / Hostname Resolution | 3 | DISPATCHED | 1/3 | opus | 14 | sortie-3-agent | worktree | 2026-09-13T18:37:00Z |
 
 ## Decisions Log
 | Timestamp | Work Unit | Sortie | Decision | Rationale |
@@ -109,3 +110,6 @@ feature_name: OPERATION DROPLET SHIPYARD
 | 2026-09-13T18:36:30Z | — | — | Gate: Container Orchestration Core and Networking unlocked (RUNNING) | Sole dependency Core CLI COMPLETED |
 | 2026-09-13T18:37:00Z | Container | 2 | Model: opus | Score 21 (≈25 turns, 6-10 files, unfamiliar Containerization APIs, depth 6); force-opus (foundation + depth ≥5) |
 | 2026-09-13T18:37:00Z | Networking | 3 | Model: opus | Score 14 (≈25 turns, 3-5 files, DNS wire format + privileged system I/O, depth 3) |
+| 2026-09-13T18:46:30Z | Networking | 3 | COMPLETED | Agent report + commit 018e53f (ff-merge) + supervisor swift_package_test SUCCEEDED, 44 tests |
+| 2026-09-13T18:46:30Z | — | — | Worktree isolation defect: Sortie 3 worktree was created from da79dec, not branch HEAD; agent reset to 3716465 | Future worktree dispatches must instruct agents to verify/reset base commit before starting |
+| 2026-09-13T18:46:30Z | Networking | 3 | Escalated design gap to user: DNS responder lives in the `drupal` process and dies after `start` exits, so local-resolver default cannot work as specified | Blocks Sortie 4 dispatch until user picks: long-lived responder vs hosts-file default |
