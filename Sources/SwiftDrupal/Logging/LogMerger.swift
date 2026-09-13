@@ -90,6 +90,15 @@ private actor LogMergeCoordinator {
 
     func failed(_ error: Error) {
         guard !finished else { return }
+        // Flush whatever the buffer is still holding — in normal merge
+        // order — before finishing with the error. Otherwise lines that
+        // arrived but were only ever "provisionally" buffered (waiting on
+        // the other source or the reorder window) would be silently
+        // dropped, and those are exactly the lines a user needs when a
+        // stream errors out.
+        for item in buffer.drainAll() {
+            continuation.yield(item)
+        }
         finish(throwing: error)
     }
 

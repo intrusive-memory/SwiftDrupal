@@ -138,6 +138,40 @@ import Testing
         #expect(buffer.drain(now: arrival).map(\.line.message) == ["one", "two"])
     }
 
+    // MARK: - drainAll (flush-on-failure)
+
+    @Test func drainAllFlushesEveryBufferedLineInMergeOrderRegardlessOfWindowOrEndedState() {
+        let buffer = LogReorderBuffer(reorderWindow: 0.25)
+        let arrival = Self.epoch
+        // None of these lines would be safe to `drain` yet: db has not
+        // ended, has not produced a comparable front for every web line,
+        // and the window has not elapsed. `drainAll` must return every one
+        // of them anyway, in full merge order — timestamp first, then
+        // web-before-db on the t0 tie, then per-source arrival order —
+        // even though it arrives out of that order (db t3 before web t2).
+        buffer.receive(.web, Self.line(0, "web t0"), arrivalTime: arrival)
+        buffer.receive(.db, Self.line(0, "db t0 tie"), arrivalTime: arrival)
+        buffer.receive(.db, Self.line(3, "db t3"), arrivalTime: arrival)
+        buffer.receive(.web, Self.line(2, "web t2"), arrivalTime: arrival)
+
+        let flushed = buffer.drainAll()
+
+        #expect(flushed.map(\.line.message) == ["web t0", "db t0 tie", "web t2", "db t3"])
+        #expect(flushed.map(\.service) == [.web, .db, .web, .db])
+        #expect(buffer.isEmpty)
+    }
+
+    @Test func drainAllReturnsEmptyWhenNothingIsBuffered() {
+        let buffer = LogReorderBuffer(reorderWindow: 0.25)
+        #expect(buffer.drainAll().isEmpty)
+
+        buffer.receive(.web, Self.line(0, "solo"), arrivalTime: Self.epoch)
+        _ = buffer.drainAll()
+        // A second call after everything has already been flushed returns
+        // nothing rather than re-emitting.
+        #expect(buffer.drainAll().isEmpty)
+    }
+
     @Test func sourceTaggingSurvivesTheMerge() {
         let buffer = LogReorderBuffer(reorderWindow: 0.25)
         let arrival = Self.epoch

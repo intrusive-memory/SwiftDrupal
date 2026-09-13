@@ -93,6 +93,22 @@ public final class LogReorderBuffer: @unchecked Sendable {
         return emitted
     }
 
+    /// Pops and returns *every* currently buffered line, regardless of
+    /// window, ended state, or what the other source's front looks like —
+    /// in the same total merge order `drain` would eventually produce
+    /// (timestamp, then `web` before `db` on ties, then per-source arrival
+    /// order). Used when a source has failed: whatever the buffer is
+    /// holding at that point must still reach the caller before the merged
+    /// stream finishes with the error, rather than being silently dropped
+    /// because the ordinary safety checks were never satisfied.
+    public func drainAll() -> [SourcedLogLine] {
+        let all = (queues[.web] ?? []) + (queues[.db] ?? [])
+        let flushed = all.sorted { $0.key < $1.key }.map(\.sourced)
+        queues[.web] = []
+        queues[.db] = []
+        return flushed
+    }
+
     /// The earliest time a currently-blocked front becomes safe purely
     /// because `reorderWindow` elapses, or nil when nothing is blocked on the
     /// window (either both queues are empty, or every non-empty front is
