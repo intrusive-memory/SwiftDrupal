@@ -21,7 +21,10 @@ process, and the `describe-commands` machine-readable manifest all exist and
 are covered by the test suite. A live end-to-end run against a real Drupal
 site is still pending — see
 [`AGENTS.md`'s "Unverified live" section](AGENTS.md#unverified-live) for
-exactly what that means and why. See [`docs/requirements/`](docs/requirements/)
+exactly what that means and why. **A real Drupal site is not expected to
+work yet:** [`docs/WORKING_INSTALL_GAPS.md`](docs/WORKING_INSTALL_GAPS.md)
+lists the known gaps, including the docroot, the database connection and
+UID mapping, in the order to fix them. See [`docs/requirements/`](docs/requirements/)
 for the full v1.0 scope:
 
 - [`01-apple-container-capability-survey.md`](docs/requirements/01-apple-container-capability-survey.md) —

@@ -396,11 +396,24 @@ _No blocking open questions identified during breakdown._
 **Decision**: The last phase (Sortie 7b) commits updates to `AGENTS.md`, `CLAUDE.md` (new) and `README.md` that describe how to compile the `drupal` binary, sign it, install the host service, host a Drupal site, and run the tests (unit, manual service check, `fkd-drupal8` smoke script). The goal is that an agent on another machine can do all of it from the docs alone. This is folded into Sortie 7b Task 1b, not done ahead of time, so the docs cover `logs` (6b) and the manifest and `post_start` (7a).
 **Basis**: the user runs the live smoke test on another machine (OQ-6), and the docs are how that machine's agent learns to build and drive the binary.
 
+### Resolved OQ-8: Gaps to a working Drupal install are captured, not fixed, in this mission
+**Affected**: whole mission; brief verdict; next mission
+**Decided**: 2026-09-13, user decision
+**Problem**: after all sorties passed, the supervisor compared `drupal start` against DDEV v1.24.8's compose template and container scripts. It found blocking gaps no sortie had covered:
+- nginx serves `/var/www/html`, not the docroot
+- no Drupal database settings are generated
+- the web VM has no way to resolve `db`
+- stock images run with no UID/GID mapping
+- the web healthcheck requires Mailpit
+- vmnet from a user LaunchAgent may need a restricted entitlement
+**Decision**: don't add sortie(s) here. Record every gap in [`docs/WORKING_INSTALL_GAPS.md`](docs/WORKING_INSTALL_GAPS.md) (G1–G28, in triage order, labeled by evidence source) and link it from `AGENTS.md`, `README.md` and `CLAUDE.md`. The user fixes the gaps on another machine where the stack can run live. Push the mission branch and open a PR into `development`.
+**Consequence**: the v1.0 CLI contract is complete and tested, but a working Drupal install is **not** delivered by this mission. The mission brief must say so and treat the gaps document as the backlog for the next iteration.
+
 ## Summary
 
 | Metric | Value |
 |--------|-------|
 | Work units | 8 |
 | Total sorties | 10 |
-| Open questions | 0 (7 resolved in Decision Log) |
+| Open questions | 0 (8 resolved in Decision Log) |
 | Dependency structure | layers |

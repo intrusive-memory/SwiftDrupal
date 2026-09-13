@@ -39,6 +39,15 @@ code", and is covered by the test suite (262 tests as of Sortie 7b). What is
 live" below. Treat a green test suite as proof the code is internally
 consistent, not as proof the product works end to end on real hardware.
 
+**Before trying to host a real site, read
+[`docs/WORKING_INSTALL_GAPS.md`](docs/WORKING_INSTALL_GAPS.md).** It lists
+known gaps (G1–G28), found by comparing `drupal start` against DDEV v1.24.8,
+that will keep a real Drupal install from working as built. Among them:
+the docroot is not applied to nginx, nothing configures Drupal's database
+connection, the web VM can't resolve `db`, there is no UID mapping, and the
+web healthcheck requires Mailpit. They are ordered as a triage path, and
+fixing them is the next body of work (EXECUTION_PLAN.md OQ-8).
+
 ## Process model (host service)
 
 Containerization VMs and the `*.drupal` DNS responder die with the process
@@ -595,17 +604,21 @@ OQ-6). The user's `fkd-drupal8` run on another machine
   (`~/Library/Application Support/com.apple.container/kernels/default.kernel-arm64`)
   and `vminit` image reference (`ghcr.io/apple/containerization/vminit:0.45.0`),
   both marked `TODO(verify)` in `LiveContainerService.swift`.
-- **DDEV database credentials** — the `ddev-dbserver` image's default
-  connection details (DDEV's own long-standing default is user `db`,
-  password `db`, database `db`, root password `root`) have not been
-  confirmed against the actual image tag this project pins
-  (`v1.24.8`, `DDEVImageCatalog.swift`, also `TODO(verify)`).
+- **DDEV database credentials** — `db`/`db`/`db` (root `root`) is now
+  confirmed from DDEV v1.24.8's own dbserver healthcheck and entrypoint
+  (see gap G13). What remains unverified is first-boot initialization of
+  the data directory on a virtiofs mount (G15) and whether the pinned
+  `v1.24.8` tag is published for arm64 (G4).
 - **Multi-GB import streaming** — `import-db`'s gzip-decompress-while-streaming
   path has unit coverage but has never streamed a real multi-gigabyte dump
   (the `fkd-drupal8` fixture's dump is 2.5GB).
 - **`.drupal` resolver behavior on macOS 26** — whether the local DNS
   responder plus `/etc/resolver/drupal` actually resolves `*.drupal` on a
   real macOS 26 system, versus falling back to the `/etc/hosts` write path.
+
+Beyond these unverified assumptions there are **known functional gaps**
+that are expected to fail: see
+[`docs/WORKING_INSTALL_GAPS.md`](docs/WORKING_INSTALL_GAPS.md).
 
 A green test suite (262 tests) is evidence the code is internally
 consistent and its documented contracts are self-consistent — it is not
