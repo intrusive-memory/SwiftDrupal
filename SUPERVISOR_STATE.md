@@ -89,14 +89,16 @@ feature_name: OPERATION DROPLET SHIPYARD
 - Notes: Label com.intrusive-memory.swiftdrupal.service. Socket ~/Library/Application Support/SwiftDrupal/service.sock (env SWIFTDRUPAL_SERVICE_SOCKET), 4-byte BE length + JSON. ExitCode serviceUnavailable = 14. ContainerService protocol unchanged; client adds startContainer(id:) -> ServiceStartOutcome, activateHostname/deactivateHostname/ping. Unresolved: live Containerization inside a LaunchAgent + virtualization entitlement never exercised; no IPC call timeouts; no TTY resize frame; LiveContainerService.exec ignores cancellation; `probe.drupal` reserved. AGENTS.md still says swift build/test (stale).
 
 ### Lifecycle Commands
-- Work unit state: RUNNING
+- Work unit state: COMPLETED
 - Current sortie: 4 of 1
-- Sortie state: DISPATCHED
+- Sortie state: COMPLETED
 - Sortie type: code
 - Model: opus
 - Complexity score: 16
 - Attempt: 1 of 3
 - Isolation: git worktree
+- Last verified: commits d72ca39, 87ddb7e merged as d29f407; supervisor re-ran swift_package_test SUCCEEDED (147 tests, 28 suites); no in-process LiveContainerService/LocalDNSServer construction outside the service
+- Notes: `init` writes config; `config` only prints. `delete` removes db data dir by default (`--keep-data` opts out) — DESTRUCTIVE DEFAULT flagged for user. `start` rebuilds only on image change (php/env edits need delete+start). `stop`/`delete` always call deactivateHostname → GUI admin prompt if a hosts-fallback line exists. `status` exits 14 when service down. Shared types LifecycleEnvironment/LifecycleProjectOptions/LifecycleServiceClient; 7a should unify with 5/6a equivalents.
 
 ### Database Import/Export
 - Work unit state: RUNNING
@@ -159,3 +161,6 @@ feature_name: OPERATION DROPLET SHIPYARD
 | 2026-09-13T20:54:23Z | Database | 5 | Model: sonnet | Score 9 (turns 10-20 = 3, 3-5 files = +2, 2 dependents = 2, file I/O = 2) |
 | 2026-09-13T20:54:23Z | Dev Tools | 6a | Model: sonnet | Score 12 (turns 21-35 = 5, 3-5 files = +2, 3 dependents = 2, streaming TTY over IPC = 3) |
 | 2026-09-13T20:54:23Z | — | — | Layer 3 parallel dispatch uses git worktrees; each prompt pins the base commit and orders a reset if the worktree is based elsewhere | Known worktree base-commit defect (Sorties 2, 3). All three sorties register subcommands in CLI/Drupal.swift, so trivial merge conflicts are expected and resolved by the supervisor |
+| 2026-09-13T21:07:38Z | Lifecycle | 4 | COMPLETED | Agent report + merge d29f407 + supervisor swift_package_test SUCCEEDED, 147 tests / 28 suites |
+| 2026-09-13T21:07:38Z | — | — | Worktree base defect recurred on Sortie 4 (da79dec); agent reset to 03992db per prompt | Base-pin instruction works; keep it in every worktree dispatch |
+| 2026-09-13T21:07:38Z | Lifecycle | 4 | Flag to user: `drupal delete` removes database data by default | Plan said "and their volumes"; an agent-driven destructive default is risky — user may want opt-in |
