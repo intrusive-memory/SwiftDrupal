@@ -25,6 +25,8 @@ public struct Drupal: AsyncParsableCommand {
             ImportDBCommand.self, ExportDBCommand.self,
             // Sortie 6a: dev tools
             ExecCommand.self, SSHCommand.self,
+            // Sortie 6b: logs
+            LogsCommand.self,
         ]
     )
 
