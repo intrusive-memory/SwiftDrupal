@@ -149,7 +149,7 @@ Sortie 7b's end-to-end smoke test proves the `drupal` binary can host a real Dru
 
 ### Sortie 4: Lifecycle Commands
 
-**Priority**: 9.3 — Blocks Sorties 7a/7b (dependency depth 2); highest complexity of the Layer 2 sorties (7 subcommands across the largest file surface) but composes already-built pieces rather than establishing new patterns.
+**Priority**: 9.3 — Blocks Sorties 7a/7b (dependency depth 2); highest complexity of the Layer 3 sorties (7 subcommands across the largest file surface) but composes already-built pieces rather than establishing new patterns.
 
 **Entry criteria**:
 - [ ] Sortie 8 exit criteria met (`ServiceClientContainerService`, service-owned hostname activation, and `serviceUnavailable` exit code available).
@@ -172,7 +172,7 @@ Sortie 7b's end-to-end smoke test proves the `drupal` binary can host a real Dru
 
 ### Sortie 5: Database Import/Export
 
-**Priority**: 8.7 — Blocks Sorties 7a/7b (dependency depth 2); smallest task/file footprint of the Layer 2 sorties, self-contained streaming logic with no shared-pattern reuse by others.
+**Priority**: 8.7 — Blocks Sorties 7a/7b (dependency depth 2); smallest task/file footprint of the Layer 3 sorties, self-contained streaming logic with no shared-pattern reuse by others.
 
 **Entry criteria**:
 - [ ] Sortie 8 exit criteria met (`ServiceClientContainerService` available to exec into the service-owned db container).
@@ -192,7 +192,7 @@ Sortie 7b's end-to-end smoke test proves the `drupal` binary can host a real Dru
 
 ### Sortie 6a: Dev Tools — Exec / SSH Commands
 
-**Priority**: 11.7 — Blocks Sortie 6b directly and Sorties 7a/7b transitively (dependency depth 3, the highest of the three Layer 2 work units); small, focused scope (2 subcommands).
+**Priority**: 11.7 — Blocks Sortie 6b directly and Sorties 7a/7b transitively (dependency depth 3, the highest of the three Layer 3 work units); small, focused scope (2 subcommands).
 
 **Entry criteria**:
 - [ ] Sortie 8 exit criteria met (`ServiceClientContainerService` streaming exec available). Interactive `ssh` TTY passthrough runs over the service socket's streaming mode, not a direct in-process container handle.
