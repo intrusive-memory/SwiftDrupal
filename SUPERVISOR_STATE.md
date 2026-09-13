@@ -98,7 +98,7 @@ feature_name: OPERATION DROPLET SHIPYARD
 - Attempt: 1 of 3
 - Isolation: git worktree
 - Last verified: commits d72ca39, 87ddb7e merged as d29f407; supervisor re-ran swift_package_test SUCCEEDED (147 tests, 28 suites); no in-process LiveContainerService/LocalDNSServer construction outside the service
-- Notes: `init` writes config; `config` only prints. `delete` removes db data dir by default (`--keep-data` opts out) — DESTRUCTIVE DEFAULT flagged for user. `start` rebuilds only on image change (php/env edits need delete+start). `stop`/`delete` always call deactivateHostname → GUI admin prompt if a hosts-fallback line exists. `status` exits 14 when service down. Shared types LifecycleEnvironment/LifecycleProjectOptions/LifecycleServiceClient; 7a should unify with 5/6a equivalents.
+- Notes: `init` writes config; `config` only prints. `delete` removes db data dir by default (`--keep-data` opts out) — user confirmed this default (OQ-5). `start` rebuilds only on image change (php/env edits need delete+start). `stop`/`delete` always call deactivateHostname → GUI admin prompt if a hosts-fallback line exists. `status` exits 14 when service down. Shared types LifecycleEnvironment/LifecycleProjectOptions/LifecycleServiceClient; 7a should unify with 5/6a equivalents.
 
 ### Database Import/Export
 - Work unit state: COMPLETED
@@ -168,3 +168,4 @@ feature_name: OPERATION DROPLET SHIPYARD
 | 2026-09-13T21:07:38Z | Lifecycle | 4 | Flag to user: `drupal delete` removes database data by default | Plan said "and their volumes"; an agent-driven destructive default is risky — user may want opt-in |
 | 2026-09-13T21:09:34Z | Database | 5 | COMPLETED | Agent report + merge e9e4ba9 + supervisor swift_package_test SUCCEEDED, 163 tests / 34 suites |
 | 2026-09-13T21:09:34Z | Database | 5 | Merge conflict in CLI/Drupal.swift subcommand list resolved by supervisor (union of Sortie 4 + 5 entries) | Expected parallel-registration conflict; no logic change |
+| 2026-09-13T21:51:25Z | Lifecycle | 4 | User decision: `drupal delete` keeps deleting database data by default; `--keep-data` opts out. No code change | Recorded in EXECUTION_PLAN.md as OQ-5; 7a/7b must document it, not change it |

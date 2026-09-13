@@ -337,11 +337,18 @@ _No blocking open questions identified during breakdown._
 - The `drupal` binary launchd runs must carry the virtualization entitlement, and the plist records its absolute path. Moving or reinstalling the binary requires re-running `drupal service install`.
 - Implementation defaults chosen by the supervisor, not the user, and overridable: socket at `~/Library/Application Support/SwiftDrupal/service.sock`, length-prefixed JSON framing, per-user LaunchAgent rather than a root LaunchDaemon.
 
+### Resolved OQ-5: Does `drupal delete` remove database data by default?
+**Affected**: Sortie 4 (as built), Sortie 7a, Sortie 7b
+**Decided**: 2026-09-13, user decision (raised by the supervisor after verifying Sortie 4)
+**Decision**: Yes, keep the opt-out behavior Sortie 4 shipped. `drupal delete` stops and removes the containers **and** deletes the project's database data directory. `--keep-data` opts out. Removal is confined to paths under the state root, never the project directory.
+**Considered and rejected**: keeping data by default with an opt-in `--purge-data`. The supervisor recommended it because an agent running `delete` unattended would silently destroy an imported database.
+**Carried into 7a/7b**: the manifest and `AGENTS.md` Command Reference must state plainly that `delete` is destructive by default and name `--keep-data`. The 7a wiring audit must not "fix" this default.
+
 ## Summary
 
 | Metric | Value |
 |--------|-------|
 | Work units | 8 |
 | Total sorties | 10 |
-| Open questions | 0 (4 resolved in Decision Log) |
+| Open questions | 0 (5 resolved in Decision Log) |
 | Dependency structure | layers |
