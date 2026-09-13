@@ -39,7 +39,8 @@ let package = Package(
             dependencies: [
                 "SwiftDrupal",
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
-            ]
+            ],
+            resources: [.copy("Fixtures")]
         ),
     ],
     swiftLanguageModes: [.v6]

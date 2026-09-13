@@ -16,7 +16,7 @@ public struct Drupal: AsyncParsableCommand {
         commandName: "drupal",
         abstract: "Run a local Drupal development environment on Apple's container runtime.",
         version: version,
-        subcommands: []
+        subcommands: [ServiceCommand.self]
     )
 
     public init() {}
@@ -39,10 +39,24 @@ public struct Drupal: AsyncParsableCommand {
                 try command.run()
             }
         } catch let error as DrupalError {
-            FileHandle.standardError.write(Data("Error: \(error.description)\n".utf8))
+            let format = OutputFormatResolver.live.resolve(jsonFlag: arguments.contains("--json"))
+            FileHandle.standardError.write(Data((errorOutput(for: error, format: format) + "\n").utf8))
             Foundation.exit(error.exitCode.rawValue)
         } catch {
             exit(withError: error)
+        }
+    }
+
+    /// Rendered stderr text for a `DrupalError`: the JSON `ErrorReport` in JSON
+    /// mode, otherwise `Error: …` plus the remedy when there is one.
+    public static func errorOutput(for error: DrupalError, format: OutputFormat) -> String {
+        switch format {
+        case .json:
+            return error.report.jsonString()
+        case .text:
+            var text = "Error: \(error.description)"
+            if let remedy = error.remedy { text += "\nRun `\(remedy)` to fix this." }
+            return text
         }
     }
 

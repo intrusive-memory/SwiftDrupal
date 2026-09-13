@@ -125,6 +125,7 @@ import Testing
         #expect(SwiftDrupal.ExitCode.platformUnavailable.rawValue == 11)
         #expect(SwiftDrupal.ExitCode.containerFailedToStart.rawValue == 12)
         #expect(SwiftDrupal.ExitCode.healthCheckTimeout.rawValue == 13)
+        #expect(SwiftDrupal.ExitCode.serviceUnavailable.rawValue == 14)
         let values = SwiftDrupal.ExitCode.allCases.map(\.rawValue)
         #expect(Set(values).count == values.count)
         #expect(!values.contains(ArgumentParser.ExitCode.validationFailure.rawValue))
@@ -135,6 +136,7 @@ import Testing
         (DrupalError.platformUnavailable("x"), .platformUnavailable),
         (DrupalError.containerFailedToStart("x"), .containerFailedToStart),
         (DrupalError.healthCheckTimeout("x"), .healthCheckTimeout),
+        (DrupalError.serviceUnavailable("x"), .serviceUnavailable),
     ])
     func drupalErrorMapsToExitCode(error: DrupalError, expected: SwiftDrupal.ExitCode) {
         #expect(error.exitCode == expected)

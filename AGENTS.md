@@ -27,6 +27,28 @@ Requirements only — no implementation yet. `Package.swift` scaffolds an
 executable target (product name `drupal`) depending on the `Containerization`
 library product from `apple/containerization`.
 
+## Process model (host service)
+
+Containerization VMs and the `*.drupal` DNS responder die with the process
+that created them, so one long-lived `drupal service run` process, started by
+the per-user LaunchAgent `com.intrusive-memory.swiftdrupal.service`, owns both
+(EXECUTION_PLAN.md OQ-3/OQ-4). Code lives in `Sources/SwiftDrupal/Service`.
+
+- Every other command uses `ServiceClientContainerService` over the Unix socket
+  `~/Library/Application Support/SwiftDrupal/service.sock` (0600;
+  `SWIFTDRUPAL_SERVICE_SOCKET` overrides). Framing is a 4-byte big-endian length
+  followed by JSON (`ServiceWire.swift`), with one connection per call.
+- Never construct `LiveContainerService` or `LocalDNSServer` outside
+  `ServiceRunCommand.run()`. Never fall back to in-process execution. An
+  unreachable socket is `DrupalError.serviceUnavailable` (exit 14), and the
+  remedy is `drupal service install`.
+- The service activates a web container's hostname when it starts it. If
+  resolver verification fails, the CLI process writes the `/etc/hosts`
+  fallback, because a LaunchAgent cannot do privileged writes unattended.
+  Use `startContainer(id:)` to get those warnings.
+- `scripts/verify-service-manual.sh` is the manual, non-CI check of a real
+  install.
+
 ## Platform
 
 Apple Silicon Mac, macOS 26, Xcode 26. This is `Containerization`'s own

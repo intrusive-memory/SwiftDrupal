@@ -54,6 +54,11 @@ private final class RecordingWriter: PrivilegedFileWriter, @unchecked Sendable {
     func removeFile(atPath path: String) throws { _ = lock.withLock { files.removeValue(forKey: path) } }
 }
 
+/// A responder on an ephemeral port (0). Construction is injected since Sortie 8.
+private func makeTestResponder() -> LocalDNSServer {
+    LocalDNSServer(handler: DNSQueryHandler(store: DNSRecordStore()), port: 0)
+}
+
 private struct StubVerifier: HostnameResolverVerifier {
     let result: Bool
     func verify(hostname: String, expectedIP: String) async -> Bool { result }
@@ -331,7 +336,7 @@ private struct FailingStrategy: HostnameStrategy {
         let config = HostnameResolution.Configuration(
             resolverFilePath: "/nonexistent-test-path/resolver", hostsFilePath: "/nonexistent-test-path/hosts",
             responderPort: 0, writer: RecordingWriter(), verifier: StubVerifier(result: true))
-        let coordinator = HostnameResolution.makeDefaultCoordinator(configuration: config)
+        let coordinator = HostnameResolution.makeDefaultCoordinator(configuration: config, responder: makeTestResponder())
         #expect(coordinator.primary.kind == .localResolver)
         #expect(coordinator.fallback.kind == .hostsFile)
         #expect(coordinator.primary is LocalResolverStrategy)
@@ -348,7 +353,7 @@ private struct FailingStrategy: HostnameStrategy {
         let config = HostnameResolution.Configuration(
             resolverFilePath: resolverPath, hostsFilePath: hostsPath,
             responderPort: 0, writer: DirectFileWriter(), verifier: StubVerifier(result: true))
-        let coordinator = HostnameResolution.makeDefaultCoordinator(configuration: config)
+        let coordinator = HostnameResolution.makeDefaultCoordinator(configuration: config, responder: makeTestResponder())
         let primary = try #require(coordinator.primary as? LocalResolverStrategy)
         defer { primary.shutdown() }
 
@@ -382,7 +387,7 @@ private struct FailingStrategy: HostnameStrategy {
         let config = HostnameResolution.Configuration(
             resolverFilePath: resolverPath, hostsFilePath: hostsPath,
             responderPort: 0, writer: DirectFileWriter(), verifier: StubVerifier(result: false))
-        let coordinator = HostnameResolution.makeDefaultCoordinator(configuration: config)
+        let coordinator = HostnameResolution.makeDefaultCoordinator(configuration: config, responder: makeTestResponder())
         defer { (coordinator.primary as? LocalResolverStrategy)?.shutdown() }
 
         let activation = try await coordinator.activate(hostname: "broken.drupal", ip: "192.168.64.40")

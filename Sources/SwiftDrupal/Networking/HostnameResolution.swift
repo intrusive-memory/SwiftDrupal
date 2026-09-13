@@ -139,15 +139,18 @@ public enum HostnameResolution {
         public static var live: Configuration { Configuration() }
     }
 
-    /// Builds a strategy of the given kind.
+    /// Builds a strategy of the given kind. `.localResolver` wraps the injected
+    /// `responder` (only the service process constructs one — see OQ-4);
+    /// `.hostsFile` ignores it.
     public static func makeStrategy(
         _ kind: HostnameStrategyKind,
-        configuration: Configuration = .live
+        configuration: Configuration = .live,
+        responder: LocalDNSServer
     ) -> any HostnameStrategy {
         switch kind {
         case .localResolver:
             LocalResolverStrategy(
-                port: configuration.responderPort,
+                server: responder,
                 registrar: ResolverFileRegistrar(
                     path: configuration.resolverFilePath, writer: configuration.writer))
         case .hostsFile:
@@ -155,11 +158,15 @@ public enum HostnameResolution {
         }
     }
 
-    /// Default wiring: local-resolver primary, verified, with `/etc/hosts` fallback.
-    public static func makeDefaultCoordinator(configuration: Configuration = .live) -> HostnameResolutionCoordinator {
+    /// Default wiring: local-resolver primary (on `responder`), verified, with
+    /// `/etc/hosts` fallback.
+    public static func makeDefaultCoordinator(
+        configuration: Configuration = .live,
+        responder: LocalDNSServer
+    ) -> HostnameResolutionCoordinator {
         HostnameResolutionCoordinator(
-            primary: makeStrategy(.default, configuration: configuration),
-            fallback: makeStrategy(.hostsFile, configuration: configuration),
+            primary: makeStrategy(.default, configuration: configuration, responder: responder),
+            fallback: makeStrategy(.hostsFile, configuration: configuration, responder: responder),
             verifier: configuration.verifier)
     }
 }

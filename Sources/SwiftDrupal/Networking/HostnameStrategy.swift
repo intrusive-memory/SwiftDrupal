@@ -46,7 +46,7 @@ enum HostnameValidation {
     }
 }
 
-/// Default strategy: in-process DNS responder on `127.0.0.1:<port>` plus the
+/// Default strategy: the service-hosted DNS responder on `127.0.0.1:<port>` plus the
 /// one-time `/etc/resolver/drupal` registration.
 public final class LocalResolverStrategy: HostnameStrategy {
     public var kind: HostnameStrategyKind { .localResolver }
@@ -55,13 +55,12 @@ public final class LocalResolverStrategy: HostnameStrategy {
     public let server: LocalDNSServer
     public let registrar: ResolverFileRegistrar
 
-    public init(
-        port: UInt16 = LocalDNSServer.defaultPort,
-        registrar: ResolverFileRegistrar,
-        store: DNSRecordStore = DNSRecordStore()
-    ) {
-        self.store = store
-        self.server = LocalDNSServer(handler: DNSQueryHandler(store: store), port: port)
+    /// - Parameter server: The responder. It is constructed by the long-lived
+    ///   `drupal service run` process (OQ-4) — or a test — and injected here, so no
+    ///   short-lived CLI path ever creates one. Records go into `server.handler.store`.
+    public init(server: LocalDNSServer, registrar: ResolverFileRegistrar) {
+        self.store = server.handler.store
+        self.server = server
         self.registrar = registrar
     }
 

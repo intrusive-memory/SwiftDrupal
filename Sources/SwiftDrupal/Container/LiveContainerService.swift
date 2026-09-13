@@ -6,8 +6,9 @@ import Foundation
 /// IMPORTANT lifetime caveat: `Containerization` runs each container as a
 /// lightweight VM owned by *this process*. Containers created here live only as
 /// long as the `LiveContainerService` instance's process; `inspect` only knows
-/// containers this instance created. Keeping a project running after a CLI
-/// command exits requires a long-lived host process (a later sortie's concern).
+/// containers this instance created. It is therefore constructed only by
+/// `drupal service run` (the launchd-managed host, OQ-4); CLI commands use
+/// `ServiceClientContainerService`.
 public actor LiveContainerService: ContainerService {
     public struct Configuration: Sendable {
         /// Linux kernel image booted in each container VM.
