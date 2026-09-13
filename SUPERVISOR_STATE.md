@@ -77,9 +77,14 @@ feature_name: OPERATION DROPLET SHIPYARD
 - Notes: Container IP not yet wired (Sortie 4 must pass ContainerService IP to coordinator.activate). New HostnameError enum not mapped to DrupalError exit codes. Design gap (in-process DNS responder dies when `start` exits) RESOLVED by OQ-3/OQ-4: the responder runs in the launchd-managed service, and IP wiring moves to Sortie 8.
 
 ### Host Service (launchd)
-- Work unit state: NOT_STARTED (unlocked — Container and Networking COMPLETED)
+- Work unit state: RUNNING
 - Current sortie: 8 of 1
-- Sortie state: PENDING
+- Sortie state: DISPATCHED
+- Sortie type: code
+- Model: opus
+- Complexity score: 28
+- Attempt: 1 of 3
+- Isolation: none (main working tree, sole active sortie)
 
 ### Lifecycle Commands
 - Work unit state: NOT_STARTED
@@ -127,3 +132,7 @@ feature_name: OPERATION DROPLET SHIPYARD
 | 2026-09-13 | — | — | User decision: one launchd-managed `drupal` process (`drupal service run`, per-user LaunchAgent) owns BOTH the container VMs and the DNS responder | Resolves the Sortie 2 and Sortie 3 lifetime gaps; recorded in EXECUTION_PLAN.md as OQ-3 and OQ-4 |
 | 2026-09-13 | — | — | Plan amended: new work unit Host Service (launchd), Sortie 8, at Layer 2; Sorties 4, 5, and 6a now depend on Sortie 8 and move to Layer 3; 7a and 7b move to Layer 4 | Decisions recorded in the plan, not only in state, so later plan reads don't reopen them. HOLD on 4/5/6a is replaced by their Sortie 8 dependency |
 | 2026-09-13 | — | — | Recurring-question root cause: the DNS decision was logged only in SUPERVISOR_STATE.md, not in the EXECUTION_PLAN.md Decision Log | From now on, every user architecture decision goes into the plan's Decision Log as a Resolved OQ in the same step it is logged here |
+| 2026-09-13T20:38:39Z | — | — | RESUME: state reconciled with git (HEAD a47cbdb; Sorties 1, 2, 3 merged) | Host Service unlocked: Container and Networking COMPLETED |
+| 2026-09-13T20:38:39Z | Host Service | 8 | Model: opus | Score 28 (turns 36-50 = 8, 6-10 files = +4, mixed machine/manual criteria = 2, establishes the IPC pattern for 4/5/6a/6b = 5, 6 dependents = 5, launchd/IPC/new tech = 4); force-opus (foundation + depth ≥5) |
+| 2026-09-13T20:38:39Z | Host Service | 8 | Isolation: main working tree, no worktree | Sole active sortie, so no parallel-agent race; avoids the systematic worktree base-commit defect seen on Sorties 2 and 3 |
+| 2026-09-13T20:38:39Z | Host Service | 8 | Atomicity risk flagged: 7 tasks spanning IPC, streaming, launchd install, and hostname ownership | Accepting single dispatch; a PARTIAL result gets a continuation rather than a re-plan |
