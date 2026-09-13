@@ -128,13 +128,15 @@ feature_name: OPERATION DROPLET SHIPYARD
 
 ### Agent-Friendly Contract, Manifest & Docs
 - Work unit state: RUNNING
-- Current sortie: 7a of 2
+- Current sortie: 7b of 2
 - Sortie state: DISPATCHED
 - Sortie type: code
-- Model: opus
-- Complexity score: 17
+- Model: sonnet
+- Complexity score: 10
 - Attempt: 1 of 3
 - Isolation: none (main working tree, sole active sortie)
+- 7a last verified: commit 7fe72bb; supervisor swift_package_test SUCCEEDED twice (262 tests, 45 suites); docs/schema/manifest.json valid JSON; no doc/plan/Package.swift changes
+- 7a notes: `drupal --manifest` == `drupal describe-commands`. The manifest is built from ArgumentParser's experimental dump-help (format not guaranteed stable across releases). JSON error envelope on stderr; usage error = 64. import/export client failure → 1. Truncated .gz now fails. post_start runs /bin/sh -c in <name>-web, cwd /var/www/html; stops at first failure → exit 12. DEFERRED for brief: three different project-root lookups (LifecycleProject.load with parent search, ServiceTarget with cwd only, DatabaseTransfer with cwd or --project-root and tolerant of missing config), so exec/ssh/logs have no --project-root.
 
 ## Active Agents
 | Work Unit | Sortie | Sortie State | Attempt | Model | Complexity Score | Task ID | Output File | Dispatched At |
@@ -189,3 +191,5 @@ feature_name: OPERATION DROPLET SHIPYARD
 | 2026-09-13T22:47:36Z | Dev Tools | 6b | COMPLETED (attempt 2) | Agent fixed the merger flush bug plus a second test-clock race; supervisor verified 3 green runs (full x2, filtered x1) |
 | 2026-09-13T22:47:36Z | — | — | Gate: Agent-Friendly Contract unlocked (RUNNING) | Lifecycle, Database, Dev Tools all COMPLETED |
 | 2026-09-13T22:47:36Z | Agent Contract | 7a | Model: opus | Score 17 (turns 36-50 = 8, 6-10 files = +4, open-ended wiring audit = 3, system/exec = 2) |
+| 2026-09-13T23:04:16Z | Agent Contract | 7a | COMPLETED | Agent report + commit 7fe72bb + supervisor swift_package_test SUCCEEDED twice, 262 tests / 45 suites |
+| 2026-09-13T23:04:16Z | Agent Contract | 7b | Model: sonnet | Score 10 (turns 21-35 = 5, 3-5 files = +2, mixed criteria = 2, low risk = 1). Accuracy is guarded by requiring the docs' command reference to be generated from `drupal describe-commands` output |
