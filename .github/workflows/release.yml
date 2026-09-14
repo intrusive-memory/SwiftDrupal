@@ -1,0 +1,95 @@
+name: Release Binary
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (e.g., v0.1.0)'
+        required: true
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-upload:
+    name: Build and Upload Binary
+    runs-on: macos-26
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Cache DerivedData and SPM packages
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/Library/Developer/Xcode/DerivedData/SwiftDrupal-*
+            ~/Library/Caches/org.swift.swiftpm
+            ~/Library/org.swift.swiftpm
+          key: release-v1-${{ runner.os }}-${{ hashFiles('Package.resolved') }}
+          restore-keys: |
+            release-v1-${{ runner.os }}-
+
+      - name: Determine Version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" == "release" ]; then
+            TAG="${{ github.event.release.tag_name }}"
+          else
+            TAG="${{ inputs.tag }}"
+          fi
+          VERSION="${TAG#v}"
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "Building version: ${VERSION} (tag: ${TAG})"
+
+      - name: Clean stale build products
+        run: rm -rf ./bin
+
+      - name: Build Release Binary
+        run: make release
+
+      - name: Verify Binary and Entitlement
+        run: |
+          file ./bin/drupal
+          ./bin/drupal --version
+          # Containerization's VM machinery refuses to run without this
+          # entitlement present on the exact binary that ships.
+          codesign -d --entitlements - ./bin/drupal | grep -q com.apple.security.virtualization || {
+            echo "ERROR: com.apple.security.virtualization entitlement missing from signed binary"
+            exit 1
+          }
+
+      - name: Package Binary with Entitlements
+        id: package
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          TARBALL="drupal-${VERSION}-arm64-macos.tar.gz"
+
+          cd bin
+          # Ship drupal.entitlements alongside the binary: `container
+          # service install` and any future re-signing on the install host
+          # need it, matching the manual procedure documented in AGENTS.md.
+          tar -czvf "${TARBALL}" drupal drupal.entitlements
+          SHA256=$(shasum -a 256 "${TARBALL}" | cut -d' ' -f1)
+
+          echo "tarball=${TARBALL}" >> $GITHUB_OUTPUT
+          echo "sha256=${SHA256}" >> $GITHUB_OUTPUT
+
+          echo "Created: ${TARBALL}"
+          echo "SHA256: ${SHA256}"
+
+      - name: Upload to Release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          files: |
+            bin/${{ steps.package.outputs.tarball }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

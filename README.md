@@ -39,26 +39,41 @@ for the full v1.0 scope:
 Apple Silicon Mac, macOS 26+, Xcode 26+ — `Containerization`'s own floor, no
 fallback for older macOS versions.
 
+## Installation
+
+**Homebrew (recommended):** pre-built, already-signed `arm64` binaries are
+published to the [Intrusive Memory tap](https://github.com/intrusive-memory/homebrew-tap)
+on every tagged release.
+
+```bash
+# Homebrew 6.0+ requires trusting third-party taps once before install:
+brew tap intrusive-memory/tap
+brew trust intrusive-memory/tap
+brew install drupal
+
+# or, without trusting the whole tap:
+brew install intrusive-memory/tap/drupal
+```
+
+**From source:** see [`AGENTS.md`](AGENTS.md)'s "Building the `drupal`
+binary" section, or use the `Makefile`:
+
+```bash
+make release                          # builds, signs, and stages ./bin/drupal
+cp bin/drupal ~/.local/bin/drupal     # install at a stable path
+```
+
 ## Quick start
 
 Full detail (flags, JSON shapes, troubleshooting) lives in
 [`AGENTS.md`](AGENTS.md); this is the short version.
 
 ```bash
-# 1. Build (locally: XcodeBuildMCP's swift_package_build tool; see AGENTS.md
-#    "Building the drupal binary" for the CI/no-XcodeBuildMCP equivalent).
-#    Then install it at a stable path:
-mkdir -p ~/.local/bin
-cp .build/out/Products/Debug/drupal ~/.local/bin/drupal   # path varies by build tool
-
-# 2. Sign it with the virtualization entitlement.
-codesign --force --sign - --entitlements drupal.entitlements ~/.local/bin/drupal
-
-# 3. Install and start the background service (one-time; prompts for an
+# 1. Install and start the background service (one-time; prompts for an
 #    admin password to register the *.drupal resolver).
 drupal service install --json
 
-# 4. Host a Drupal site.
+# 2. Host a Drupal site.
 cd ~/Projects/my-drupal-site
 drupal init --json
 drupal start --json
