@@ -8,8 +8,12 @@ import Foundation
 // `CommandConfiguration`, so a newly registered subcommand appears without
 // touching this file. Value types come from reflecting each command's property
 // wrappers. `ManifestAnnotated` adds contract facts ArgumentParser cannot know
-// (needs the service, destructive defaults); it is optional. The emitted shape
-// is described by docs/schema/manifest.json.
+// (needs the service, destructive defaults); it is optional. `setup` (added in
+// schemaVersion 2) is the one part of the manifest that isn't introspected —
+// a hand-maintained bootstrap recipe from nothing installed to a hosted site,
+// so an agent that only discovers `drupal describe-commands` (never README or
+// AGENTS.md) can still configure itself. The emitted shape is described by
+// docs/schema/manifest.json.
 
 /// `drupal describe-commands`: prints the command manifest. Always JSON.
 public struct DescribeCommandsCommand: AsyncParsableCommand {
@@ -85,6 +89,24 @@ public struct CommandManifest: Codable, Equatable, Sendable {
         public var parsingStrategy: String
     }
 
+    /// A bootstrap recipe an agent (or a person) can follow verbatim to get
+    /// from nothing installed to a hosted Drupal site, without needing to
+    /// have already discovered README/AGENTS.md.
+    public struct Setup: Codable, Equatable, Sendable {
+        public struct Step: Codable, Equatable, Sendable {
+            public var id: String
+            public var title: String
+            /// Shell commands to run, in order. Empty when the step is
+            /// download-and-run-an-installer rather than a command.
+            public var commands: [String]
+            public var notes: [String]
+        }
+
+        public var summary: String
+        public var platform: [String]
+        public var steps: [Step]
+    }
+
     public struct Command: Codable, Equatable, Sendable {
         /// Full path below the tool, e.g. `service install`.
         public var name: String
@@ -113,10 +135,11 @@ public struct CommandManifest: Codable, Equatable, Sendable {
     public var rootArguments: [Argument]
     /// Every registered command below the root, depth-first in registration order.
     public var commands: [Command]
+    public var setup: Setup
 }
 
 extension CommandManifest {
-    public static let schemaVersion = 1
+    public static let schemaVersion = 2
     static let usageErrorName = "usageError"
 
     /// Builds the manifest for `root` (the `drupal` command by default).
@@ -159,7 +182,67 @@ extension CommandManifest {
                 "A post_start command exiting non-zero makes start and restart exit 12 (containerFailedToStart) after printing the report.",
             ],
             rootArguments: try arguments(for: root, dumped: dump.arguments ?? []),
-            commands: commands
+            commands: commands,
+            setup: Setup(
+                summary:
+                    "Bootstrap sequence to get a local Drupal site hosted end to end, from nothing installed to a running site.",
+                platform: [
+                    "Apple Silicon Mac (M1 or later).",
+                    "macOS 26 (Tahoe) or later.",
+                ],
+                steps: [
+                    Setup.Step(
+                        id: "install",
+                        title: "Install the drupal binary",
+                        commands: [
+                            "brew tap intrusive-memory/tap",
+                            "brew trust intrusive-memory/tap",
+                            "brew install drupal",
+                        ],
+                        notes: [
+                            "Homebrew 6.0+ requires trusting a third-party tap once before install; `brew install intrusive-memory/tap/drupal` skips trusting the whole tap.",
+                            "The formula ad-hoc signs the binary with the virtualization entitlement Containerization's VM machinery requires — no separate codesign step needed.",
+                            "Building from source instead: this repo's Makefile (`make release`) builds and stages it at ./bin/drupal, already signed; copy it to a stable path (see the next note) and re-sign it there.",
+                        ]
+                    ),
+                    Setup.Step(
+                        id: "container-runtime",
+                        title: "Install Apple's container CLI and default kernel",
+                        commands: [
+                            "container system start --enable-kernel-install"
+                        ],
+                        notes: [
+                            "Not distributed via Homebrew: download the signed installer from https://github.com/apple/container/releases first, and run it (it installs under /usr/local; needs an administrator password once).",
+                            "`drupal start` fails with a platformUnavailable-style \"Linux kernel not found\" error if this step is skipped.",
+                        ]
+                    ),
+                    Setup.Step(
+                        id: "service",
+                        title: "Install and start the background service",
+                        commands: [
+                            "drupal service install --json"
+                        ],
+                        notes: [
+                            "One-time. Registers the *.drupal resolver and prompts once for an administrator password.",
+                            "The LaunchAgent records the binary's absolute path literally; re-run this after replacing the binary at that path.",
+                        ]
+                    ),
+                    Setup.Step(
+                        id: "host-site",
+                        title: "Host a Drupal site",
+                        commands: [
+                            "drupal init --json",
+                            "drupal start --json",
+                            "drupal import-db path/to/dump.sql.gz --json",
+                        ],
+                        notes: [
+                            "Run from the project directory that holds (or will hold) the site's docroot.",
+                            "import-db accepts .sql or .sql.gz, and is optional if the site has no existing data to load.",
+                            "Verify with `drupal status --json`, then open http://<project-name>.drupal/.",
+                        ]
+                    ),
+                ]
+            )
         )
     }
 

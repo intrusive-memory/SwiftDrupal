@@ -2,12 +2,12 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/intrusive-memory/SwiftDrupal/docs/schema/manifest.json",
   "title": "drupal command manifest",
-  "description": "Shape of the JSON printed by `drupal --manifest` and `drupal describe-commands` (schemaVersion 1). Built from ArgumentParser introspection, so every registered subcommand appears. Optional keys are omitted when they have no value.",
+  "description": "Shape of the JSON printed by `drupal --manifest` and `drupal describe-commands` (schemaVersion 2). Built from ArgumentParser introspection, so every registered subcommand appears; `setup` is hand-maintained rather than introspected. Optional keys are omitted when they have no value.",
   "type": "object",
-  "required": ["schemaVersion", "tool", "invocations", "jsonOutput", "exitCodes", "exitCodeNotes", "rootArguments", "commands"],
+  "required": ["schemaVersion", "tool", "invocations", "jsonOutput", "exitCodes", "exitCodeNotes", "rootArguments", "commands", "setup"],
   "additionalProperties": false,
   "properties": {
-    "schemaVersion": { "type": "integer", "enum": [1] },
+    "schemaVersion": { "type": "integer", "enum": [2] },
     "tool": {
       "type": "object",
       "required": ["name", "version", "abstract"],
@@ -33,9 +33,31 @@
     "exitCodes": { "type": "array", "items": { "$ref": "#/$defs/exitCode" } },
     "exitCodeNotes": { "type": "array", "items": { "type": "string" } },
     "rootArguments": { "type": "array", "items": { "$ref": "#/$defs/argument" } },
-    "commands": { "type": "array", "items": { "$ref": "#/$defs/command" } }
+    "commands": { "type": "array", "items": { "$ref": "#/$defs/command" } },
+    "setup": { "$ref": "#/$defs/setup" }
   },
   "$defs": {
+    "setup": {
+      "type": "object",
+      "required": ["summary", "platform", "steps"],
+      "additionalProperties": false,
+      "properties": {
+        "summary": { "type": "string" },
+        "platform": { "type": "array", "items": { "type": "string" } },
+        "steps": { "type": "array", "items": { "$ref": "#/$defs/setupStep" } }
+      }
+    },
+    "setupStep": {
+      "type": "object",
+      "required": ["id", "title", "commands", "notes"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "commands": { "type": "array", "items": { "type": "string" }, "description": "Shell commands to run, in order. Empty when the step is download-and-run-an-installer rather than a command." },
+        "notes": { "type": "array", "items": { "type": "string" } }
+      }
+    },
     "exitCode": {
       "type": "object",
       "required": ["code", "name", "meaning", "source"],

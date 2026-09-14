@@ -163,7 +163,7 @@ private func registeredPaths(_ type: any ParsableCommand.Type, prefix: String? =
         let names = manifest.commands.map(\.name)
         let expected = [
             "service", "service run", "service install", "service uninstall", "service status",
-            "init", "start", "stop", "restart", "status", "delete", "config", "validate",
+            "init", "start", "stop", "restart", "status", "delete", "prune", "config", "validate",
             "import-db", "export-db", "exec", "ssh", "logs", "describe-commands",
         ]
         for name in expected { #expect(names.contains(name), "\(name) missing") }
@@ -246,9 +246,30 @@ private func registeredPaths(_ type: any ParsableCommand.Type, prefix: String? =
         for name in ["init", "config", "validate", "describe-commands"] {
             #expect(command(name)?.requiresService == false, "\(name)")
         }
-        for name in ["start", "stop", "restart", "status", "delete", "import-db", "export-db", "exec", "ssh", "logs"] {
+        for name in ["start", "stop", "restart", "status", "delete", "prune", "import-db", "export-db", "exec", "ssh", "logs"] {
             #expect(command(name)?.requiresService == true, "\(name)")
         }
+    }
+
+    @Test func setupCarriesAnAgentBootstrapRecipe() throws {
+        let manifest = try CommandManifest.build()
+        #expect(manifest.schemaVersion == 2)
+        #expect(!manifest.setup.summary.isEmpty)
+        #expect(!manifest.setup.platform.isEmpty)
+
+        let ids = manifest.setup.steps.map(\.id)
+        #expect(ids == ["install", "container-runtime", "service", "host-site"])
+        for step in manifest.setup.steps {
+            #expect(!step.title.isEmpty, "\(step.id)")
+            #expect(!step.notes.isEmpty, "\(step.id)")
+        }
+
+        let install = try #require(manifest.setup.steps.first { $0.id == "install" })
+        #expect(install.commands.contains("brew install drupal"))
+
+        let hostSite = try #require(manifest.setup.steps.first { $0.id == "host-site" })
+        #expect(hostSite.commands.contains("drupal init --json"))
+        #expect(hostSite.commands.contains("drupal start --json"))
     }
 
     /// Wiring audit guard: every visible leaf command accepts `--json`.
