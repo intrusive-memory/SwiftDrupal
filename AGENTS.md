@@ -27,6 +27,10 @@ exit codes and envelope fields are only ever appended, never renumbered.
 
 ## Status
 
+The plan of record for remaining work is `docs/ROADMAP.md` (phases,
+owners, open decisions, and multi-account notes for this machine). Read it
+before starting work and update it in the PR that changes an item's status.
+
 The container-independent CLI skeleton is built; containers are not.
 
 - Implemented: config model, loading and validation (`.drupal/config.yaml`),
