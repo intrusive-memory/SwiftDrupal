@@ -86,3 +86,14 @@ floor, not a target to relax.
 swift build
 swift test
 ```
+
+Install the real binary with `scripts/install.sh`: release build, ad-hoc
+codesign with `scripts/drupal.entitlements` (Virtualization.framework needs
+`com.apple.security.virtualization`, and `swift build` strips signatures),
+copied to `~/.local/bin/drupal`. It restarts the resolver LaunchAgent if
+loaded. Then, once per machine: `drupal resolver install` (plus
+`sudo drupal resolver install` if `/etc/resolver/drupal` is missing).
+
+`scripts/run-spike.sh` runs the Containerization runtime spike
+(`Sources/ContainerSpike/`, findings in
+`docs/spikes/01-containerization-runtime-spike.md`); it is not shipped.
