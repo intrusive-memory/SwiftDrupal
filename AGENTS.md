@@ -82,6 +82,12 @@ The container-independent CLI skeleton is built; containers are not.
   matches flags to Swift property types by name, and `ManifestTests`
   enforces this.
 
+## Branches
+
+Work on `development` (or feature branches off it). `main` changes only
+through PRs from `development`. The pre-rewrite implementation (Operation
+Droplet Shipyard) is preserved at tag `archive/droplet-shipyard`.
+
 ## Platform
 
 Apple Silicon Mac, macOS 26, Xcode 26. This is `Containerization`'s own
@@ -94,7 +100,12 @@ swift build
 swift test
 ```
 
-Install the real binary with `scripts/install.sh`: release build, ad-hoc
+`make build` / `make test` wrap the same. `make release` puts a signed binary
+plus its entitlements in `./bin` (what `.github/workflows/release.yml`
+packages when a GitHub release is published); CI runs `swift build` and
+`swift test` on every push/PR to `main` and `development`.
+
+Install the real binary with `scripts/install.sh` (or `make install`): release build, ad-hoc
 codesign with `scripts/drupal.entitlements` (Virtualization.framework needs
 `com.apple.security.virtualization`, and `swift build` strips signatures),
 copied to `~/.local/bin/drupal`. It restarts the resolver LaunchAgent if

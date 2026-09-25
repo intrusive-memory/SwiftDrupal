@@ -1,5 +1,8 @@
 # SwiftDrupal
 
+[![Tests](https://github.com/intrusive-memory/SwiftDrupal/actions/workflows/tests.yml/badge.svg)](https://github.com/intrusive-memory/SwiftDrupal/actions/workflows/tests.yml)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
+
 A standalone Swift CLI (`drupal`) for running a local Drupal development
 environment on Apple's [`container`](https://github.com/apple/container)
 runtime, built directly on Apple's
