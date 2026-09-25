@@ -6,8 +6,9 @@ runtime, built directly on Apple's
 [Containerization](https://github.com/apple/containerization) Swift package
 rather than on Docker or a compose-file shim.
 
-Not implemented yet — this repository currently holds the v1.0
-requirements and a package scaffold. See
+Early: the config commands (`init`, `config`, `validate`,
+`describe-commands`) work; container commands are wired but not yet
+implemented. The CLI contract is in [`docs/cli-contract.md`](docs/cli-contract.md). See
 [`docs/requirements/`](docs/requirements/) for the full scope:
 
 - [`01-apple-container-capability-survey.md`](docs/requirements/01-apple-container-capability-survey.md) —

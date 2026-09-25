@@ -21,11 +21,51 @@ idempotent lifecycle commands, distinct exit codes). Read
 underlying capability research (what `container`/`Containerization` can and
 cannot do) that the v1.0 scope is built on.
 
+`docs/cli-contract.md` is the CLI's external contract (JSON envelope, exit
+codes, config schema, commands). Keep it in sync with any change to those;
+exit codes and envelope fields are only ever appended, never renumbered.
+
 ## Status
 
-Requirements only — no implementation yet. `Package.swift` scaffolds an
-executable target (product name `drupal`) depending on the `Containerization`
-library product from `apple/containerization`.
+The container-independent CLI skeleton is built; containers are not.
+
+- Implemented: config model, loading and validation (`.drupal/config.yaml`),
+  project-name derivation, `init`, `config`, `validate`,
+  `describe-commands`, the JSON envelope, and exit codes.
+- Wired but stubbed: `start`, `stop`, `restart`, `status`/`describe`,
+  `delete`, `exec`, `ssh`, `logs`, `import-db`, `export-db`. They go through
+  the `ContainerRuntime` protocol, whose only implementation,
+  `UnimplementedRuntime`, fails with `not_implemented` (exit 12). The next
+  step is a Containerization-backed `ContainerRuntime`.
+
+## Layout
+
+- `Sources/DrupalKit/` — all logic, as a library so tests can reach it.
+  - `Core/` — `ExitStatus` (every exit code), `DrupalError`, `Envelope`,
+    `CLIEnvironment` (task-local cwd/streams/TTY/runtime, injected in tests).
+  - `Config/` — `ProjectConfig`, `ConfigParser` (Yams node tree → model,
+    with a path and line for every problem), `ConfigValidator`,
+    `ConfigWriter`, `ProjectName`, `ProjectLayout`, `ResolvedProject`.
+  - `Runtime/` — the `ContainerRuntime` protocol and its value types,
+    `UnimplementedRuntime`, and the host `PlatformChecking`.
+  - `CLI/` — `DrupalCLI` (entry point; owns parse errors), `RootCommand`,
+    `DrupalCommand` (shared `run()`: output mode, envelope, exit code),
+    `Manifest` (generated from ArgumentParser's dump plus reflection), and
+    `Commands/`.
+- `Sources/SwiftDrupal/` — the thin `drupal` executable.
+- `Tests/DrupalKitTests/` — Swift Testing; `Support.swift` runs the real
+  command tree in-process against temp dirs and a `FakeRuntime`.
+
+## Conventions
+
+- Commands implement `execute(_:) async throws(DrupalError) -> CommandOutput`
+  and never print themselves. Every failure is a `DrupalError` carrying an
+  `ExitStatus`.
+- No interactive prompts, ever. Destructive or overwriting actions take a
+  flag (`--force`, `--keep-data`) instead of asking.
+- Keep default kebab-case option names (no `.customLong`): the manifest
+  matches flags to Swift property types by name, and `ManifestTests`
+  enforces this.
 
 ## Platform
 
