@@ -32,6 +32,11 @@ The container-independent CLI skeleton is built; containers are not.
 - Implemented: config model, loading and validation (`.drupal/config.yaml`),
   project-name derivation, `init`, `config`, `validate`,
   `describe-commands`, the JSON envelope, and exit codes.
+- Implemented: `<name>.drupal` resolution (`drupal resolver
+  install|uninstall|status|serve`) — a built-in DNS responder answering
+  from drupal's own hosts file, routed via `/etc/resolver/drupal`;
+  `/etc/hosts` is never touched. `start`/`stop`/`delete` keep the hosts
+  file in step. See docs/cli-contract.md, "How `<name>.drupal` resolves".
 - Wired but stubbed: `start`, `stop`, `restart`, `status`/`describe`,
   `delete`, `exec`, `ssh`, `logs`, `import-db`, `export-db`. They go through
   the `ContainerRuntime` protocol, whose only implementation,
@@ -46,6 +51,9 @@ The container-independent CLI skeleton is built; containers are not.
   - `Config/` — `ProjectConfig`, `ConfigParser` (Yams node tree → model,
     with a path and line for every problem), `ConfigValidator`,
     `ConfigWriter`, `ProjectName`, `ProjectLayout`, `ResolvedProject`.
+  - `Resolver/` — `HostsFile`, `DNSResponder` (UDP, `.drupal` zone only),
+    `ResolverEnvironment` (paths, LaunchAgent, launchd behind
+    `ServiceControl`, injected in tests).
   - `Runtime/` — the `ContainerRuntime` protocol and its value types,
     `UnimplementedRuntime`, and the host `PlatformChecking`.
   - `CLI/` — `DrupalCLI` (entry point; owns parse errors), `RootCommand`,

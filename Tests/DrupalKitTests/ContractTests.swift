@@ -1,3 +1,4 @@
+import ArgumentParser
 import Foundation
 import Testing
 @testable import DrupalKit
@@ -60,7 +61,7 @@ import Testing
             "project_not_found": 4, "already_exists": 5, "platform_unavailable": 6,
             "container_start_failed": 7, "health_timeout": 8, "project_not_running": 9,
             "container_operation_failed": 10, "io_error": 11, "not_implemented": 12,
-            "post_start_failed": 13,
+            "post_start_failed": 13, "permission_required": 14,
         ]
         let actual = Dictionary(uniqueKeysWithValues: ExitStatus.allCases.map { ($0.identifier, $0.rawValue) })
         #expect(actual == expected)
@@ -101,13 +102,21 @@ import Testing
         let expected: Set = [
             "init", "config", "validate", "start", "stop", "restart", "status", "delete",
             "exec", "ssh", "logs", "import-db", "export-db", "describe-commands",
+            "resolver install", "resolver uninstall", "resolver status", "resolver serve",
         ]
         #expect(names == expected)
         #expect(manifest.commands.allSatisfy { !$0.abstract.isEmpty })
     }
 
     @Test func matchesTheRegisteredCommandTree() {
-        #expect(manifest.commands.map(\.name) == RootCommand.configuration.subcommands.map { $0._commandName })
+        func leaves(_ types: [any ParsableCommand.Type], _ prefix: String) -> [String] {
+            types.flatMap { t in
+                t.configuration.subcommands.isEmpty
+                    ? [prefix + t._commandName]
+                    : leaves(t.configuration.subcommands, prefix + t._commandName + " ")
+            }
+        }
+        #expect(manifest.commands.map(\.name) == leaves(RootCommand.configuration.subcommands, ""))
     }
 
     @Test func statusHasDescribeAlias() throws {

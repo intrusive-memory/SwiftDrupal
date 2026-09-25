@@ -29,6 +29,7 @@ public struct RootCommand: ParsableCommand {
             LogsCommand.self,
             ImportDBCommand.self,
             ExportDBCommand.self,
+            ResolverCommand.self,
             DescribeCommandsCommand.self,
         ]
     )
@@ -114,10 +115,18 @@ public enum DrupalCLI {
         return !env.stdoutIsTTY
     }
 
-    /// The subcommand named in `arguments`, or "drupal".
+    /// The subcommand named in `arguments`, or "drupal"; nested commands are
+    /// space-joined ("resolver install").
     static func commandName(in arguments: [String]) -> String {
-        let names = RootCommand.configuration.subcommands.flatMap { [$0._commandName] + $0.configuration.aliases }
-        guard let first = arguments.first(where: { !$0.hasPrefix("-") }), names.contains(first) else { return "drupal" }
-        return RootCommand.configuration.subcommands.first { $0._commandName == first || $0.configuration.aliases.contains(first) }?._commandName ?? first
+        var words = arguments.filter { !$0.hasPrefix("-") }[...]
+        var level = RootCommand.configuration.subcommands
+        var path: [String] = []
+        while let word = words.popFirst(),
+              let match = level.first(where: { $0._commandName == word || $0.configuration.aliases.contains(word) }) {
+            path.append(match._commandName)
+            level = match.configuration.subcommands
+            if level.isEmpty { break }
+        }
+        return path.isEmpty ? "drupal" : path.joined(separator: " ")
     }
 }

@@ -78,28 +78,37 @@ public struct CommandManifest: Encodable, Sendable {
         var globals: [Argument] = []
         var commands: [Command] = []
 
-        for sub in dump.command.subcommands ?? [] where sub.commandName != "help" {
-            guard let type = RootCommand.configuration.subcommands.first(where: { $0._commandName == sub.commandName }) else { continue }
-            let types = Reflection.types(of: type.init())
-            var args: [Argument] = []
-            for info in sub.arguments ?? [] where info.isPublic {
-                let arg = Argument(info, swiftType: types[info.key])
-                let base = info.key.hasPrefix("no-") ? String(info.key.dropFirst(3)) : info.key
-                if globalNames.contains(base) {
-                    if !globals.contains(where: { $0.name == arg.name }) { globals.append(arg) }
-                } else {
-                    args.append(arg)
+        // Leaf commands only; nested ones are named by their full path ("resolver install").
+        func walk(_ dumped: [DumpCommand], _ registered: [any ParsableCommand.Type], prefix: String) {
+            for sub in dumped where sub.commandName != "help" {
+                guard let type = registered.first(where: { $0._commandName == sub.commandName }) else { continue }
+                let name = prefix + sub.commandName
+                if let children = sub.subcommands, !children.isEmpty {
+                    walk(children, type.configuration.subcommands, prefix: name + " ")
+                    continue
                 }
+                let types = Reflection.types(of: type.init())
+                var args: [Argument] = []
+                for info in sub.arguments ?? [] where info.isPublic {
+                    let arg = Argument(info, swiftType: types[info.key])
+                    let base = info.key.hasPrefix("no-") ? String(info.key.dropFirst(3)) : info.key
+                    if globalNames.contains(base) {
+                        if !globals.contains(where: { $0.name == arg.name }) { globals.append(arg) }
+                    } else {
+                        args.append(arg)
+                    }
+                }
+                mergeInversions(&args)
+                commands.append(Command(
+                    name: name,
+                    aliases: sub.aliases ?? [],
+                    abstract: sub.abstract ?? "",
+                    discussion: sub.discussion?.isEmpty == false ? sub.discussion : nil,
+                    arguments: args
+                ))
             }
-            mergeInversions(&args)
-            commands.append(Command(
-                name: sub.commandName,
-                aliases: sub.aliases ?? [],
-                abstract: sub.abstract ?? "",
-                discussion: sub.discussion?.isEmpty == false ? sub.discussion : nil,
-                arguments: args
-            ))
         }
+        walk(dump.command.subcommands ?? [], RootCommand.configuration.subcommands, prefix: "")
 
         mergeInversions(&globals)
         return CommandManifest(

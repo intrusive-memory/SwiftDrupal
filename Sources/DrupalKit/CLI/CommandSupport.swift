@@ -96,12 +96,16 @@ public struct CommandContext: Sendable {
 /// Conformed to by every subcommand; supplies `run()`.
 public protocol DrupalCommand: AsyncParsableCommand {
     var global: GlobalOptions { get }
+    /// Envelope `command`: the full path for nested commands ("resolver install").
+    static var envelopeName: String { get }
     func execute(_ context: CommandContext) async throws(DrupalError) -> CommandOutput
 }
 
 extension DrupalCommand {
+    public static var envelopeName: String { _commandName }
+
     public mutating func run() async throws {
-        let context = CommandContext(environment: CLIEnvironment.current, command: Self._commandName, global: global)
+        let context = CommandContext(environment: CLIEnvironment.current, command: Self.envelopeName, global: global)
         let code: Int32
         do {
             let output = try await execute(context)

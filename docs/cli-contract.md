@@ -100,6 +100,7 @@ Defined in one place: `ExitStatus` in
 | 11 | `io_error` | Reading or writing a local file failed. |
 | 12 | `not_implemented` | The command exists in the contract but its runtime is not built yet. |
 | 13 | `post_start_failed` | A `post_start` command exited non-zero (containers are left running). |
+| 14 | `permission_required` | A one-time step needs root (`/etc/resolver/drupal`); rerun the same command with `sudo`. |
 
 **`exec` and `ssh` exit with the child process's own exit code** when the
 child could be run, as `docker exec` does — so for those two commands a
@@ -189,6 +190,10 @@ list with every flag, its type (`boolean`, `integer`, `number`, `string`,
 | `logs [--service ...] [-f] [--tail N]` | Merged web+db log stream. | `{lines}` (final line) |
 | `import-db [--file path]` | Drop, recreate, and load the database from a plain `.sql` file or piped stdin. | `{database, source}` |
 | `export-db [--file path] [--force]` | `mysqldump` to a file (or stdout in text mode). | `{database, destination}` |
+| `resolver install` | One-time hostname setup; run once with `sudo` and once without, either order. Exit 14 until both halves are done. | resolver report |
+| `resolver uninstall` | Reverse of install, same sudo split. | `{actions}` |
+| `resolver status` (also bare `resolver`) | Check every piece, including what each registered hostname resolves to. Always exit 0; read `healthy`/`problems`. | resolver report |
+| `resolver serve [--port N]` | The DNS responder in the foreground (what the LaunchAgent runs). | — |
 | `describe-commands` | The command manifest. | the manifest |
 
 Global options on every command: `--json` / `--no-json`, `--project-dir
@@ -218,6 +223,30 @@ Global options on every command: `--json` / `--no-json`, `--project-dir
 
 `status` is `{state: running|stopped|partial|absent, services: [{service:
 web|db, state: running|stopped|absent, image, ip_address}]}`.
+
+### How `<name>.drupal` resolves
+
+`/etc/hosts` is never read or written. Instead:
+
+| Piece | Path | Written by | Privilege |
+| --- | --- | --- | --- |
+| Per-domain resolver | `/etc/resolver/drupal` (`nameserver 127.0.0.1`, `port 15353`) | `sudo drupal resolver install`, once | root |
+| Responder | `drupal resolver serve` on UDP 127.0.0.1:15353, kept alive by `~/Library/LaunchAgents/dev.swiftdrupal.resolver.plist` | `drupal resolver install`, once | user |
+| drupal's own hosts file | `~/Library/Application Support/drupal/hosts` (hosts(5) format) | every `start` (adds `<name>.drupal → web IP`), `stop`/`delete` (removes it) | user |
+
+macOS sends only `*.drupal` queries to the responder, which is
+authoritative for that zone: registered names (and any subdomain of one)
+get an A/AAAA record with a 1-second TTL, unknown names NXDOMAIN, other
+zones REFUSED. It re-reads the hosts file when it changes, so a new
+container IP is live the moment `start` records it, with no privileged
+step. If the resolver isn't set up, `start` still succeeds and adds a
+`warnings` entry with the container's IP URL.
+
+The resolver report (`install`/`status` `data`): `{healthy, problems:
+[string], actions: [string]|null, system_resolver: {path, state:
+installed|missing|different}, launch_agent: {path, state, loaded},
+responder: {address, responding}, hosts_file, hosts: [{hostname,
+ip_address, system_resolves_to}]|null}`.
 
 ### `logs` in JSON mode
 
@@ -262,6 +291,11 @@ maintained by hand.
 ## Common workflows
 
 ```bash
+# One-time, per machine: make <name>.drupal resolve (either order)
+sudo drupal resolver install
+drupal resolver install --json
+drupal resolver status --json
+
 # New project in the current directory, then check what will happen
 drupal init --php-version 8.3 --json
 drupal validate --json

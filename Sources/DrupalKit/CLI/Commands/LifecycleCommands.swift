@@ -2,7 +2,8 @@ import ArgumentParser
 import Foundation
 
 // start / stop / restart / status / delete. All go through ContainerRuntime;
-// idempotency is the runtime's contract, not re-checked here.
+// idempotency is the runtime's contract, not re-checked here. start records
+// `<name>.drupal → web IP` in drupal's hosts file; stop and delete remove it.
 
 /// Compact project identity embedded in lifecycle results.
 struct ProjectRef: Encodable, Sendable {
@@ -75,7 +76,8 @@ struct StopCommand: DrupalCommand {
         let status = try await context.runtime.stop(project)
         return CommandOutput(
             data: LifecycleResult(project: ProjectRef(project), status: status),
-            text: "Stopped \(project.name)"
+            text: "Stopped \(project.name)",
+            warnings: Hostname.unregister(project, context)
         )
     }
 }
@@ -154,7 +156,8 @@ struct DeleteCommand: DrupalCommand {
         try await context.runtime.delete(project, keepData: keepData)
         return CommandOutput(
             data: Result(project: ProjectRef(project), keptData: keepData),
-            text: "Deleted \(project.name)" + (keepData ? " (database kept)" : "")
+            text: "Deleted \(project.name)" + (keepData ? " (database kept)" : ""),
+            warnings: Hostname.unregister(project, context)
         )
     }
 }
@@ -163,6 +166,7 @@ struct DeleteCommand: DrupalCommand {
 /// in order via `bash -c` in the web container, stopping at the first failure.
 private func startAndHooks(_ project: ResolvedProject, timeout: Int, _ context: CommandContext) async throws(DrupalError) -> CommandOutput {
     let status = try await context.runtime.start(project, options: StartOptions(healthTimeout: .seconds(timeout)))
+    let dnsWarnings = Hostname.register(project, status, context)
     var hooks: [PostStartResult] = []
     for command in project.config.postStart {
         let output: ExecRequest.Output = context.jsonMode ? .capture : .inherit
@@ -184,6 +188,35 @@ private func startAndHooks(_ project: ResolvedProject, timeout: Int, _ context: 
     return CommandOutput(
         data: LifecycleResult(project: ProjectRef(project), status: status, postStart: hooks),
         text: "Started \(project.name): \(project.url)",
-        warnings: project.warnings
+        warnings: project.warnings + dnsWarnings
     )
+}
+
+/// Keeps drupal's hosts file in step with the web container. Failures here
+/// are warnings, not errors: the containers are up and reachable by IP.
+enum Hostname {
+    static func register(_ project: ResolvedProject, _ status: ProjectStatus, _ context: CommandContext) -> [String] {
+        let resolver = context.environment.resolver
+        guard let ip = status.services.first(where: { $0.service == .web })?.ipAddress else {
+            return ["the web container reported no IP address; \(project.hostname) was not registered"]
+        }
+        do {
+            try resolver.hostsFile.set(project.hostname, to: ip)
+        } catch {
+            return ["could not register \(project.hostname) → \(ip): \(error.message)"]
+        }
+        guard resolver.isInstalled else {
+            return ["\(project.hostname) will not resolve until the resolver is set up (`drupal resolver status`); meanwhile use http://\(ip)/"]
+        }
+        return []
+    }
+
+    static func unregister(_ project: ResolvedProject, _ context: CommandContext) -> [String] {
+        do {
+            try context.environment.resolver.hostsFile.remove(project.hostname)
+            return []
+        } catch {
+            return ["could not unregister \(project.hostname): \(error.message)"]
+        }
+    }
 }

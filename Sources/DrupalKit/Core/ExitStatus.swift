@@ -33,6 +33,9 @@ public enum ExitStatus: Int32, CaseIterable, Sendable, Codable {
     case notImplemented = 12
     /// A `post_start` command exited non-zero after the containers came up.
     case postStartFailed = 13
+    /// A one-time privileged step is needed (the /etc/resolver file); rerun
+    /// the command with sudo.
+    case permissionRequired = 14
 
     public var identifier: String {
         switch self {
@@ -50,6 +53,7 @@ public enum ExitStatus: Int32, CaseIterable, Sendable, Codable {
         case .ioError: "io_error"
         case .notImplemented: "not_implemented"
         case .postStartFailed: "post_start_failed"
+        case .permissionRequired: "permission_required"
         }
     }
 
@@ -69,6 +73,7 @@ public enum ExitStatus: Int32, CaseIterable, Sendable, Codable {
         case .ioError: "Reading or writing a local file failed."
         case .notImplemented: "The command is part of the contract but not implemented yet."
         case .postStartFailed: "A post_start command exited non-zero."
+        case .permissionRequired: "A one-time step needs root; rerun the command with sudo."
         }
     }
 }

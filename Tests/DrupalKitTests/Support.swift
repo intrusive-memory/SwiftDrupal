@@ -25,9 +25,10 @@ func drupal(
     in dir: URL,
     tty: Bool = false,
     runtime: any ContainerRuntime = UnimplementedRuntime(),
-    platform: any PlatformChecking = PassingPlatform()
+    platform: any PlatformChecking = PassingPlatform(),
+    resolver: ResolverEnvironment? = nil
 ) async -> RunResult {
-    await drupal(args, in: dir, tty: tty, runtime: runtime, platform: platform)
+    await drupal(args, in: dir, tty: tty, runtime: runtime, platform: platform, resolver: resolver)
 }
 
 func drupal(
@@ -35,12 +36,14 @@ func drupal(
     in dir: URL,
     tty: Bool = false,
     runtime: any ContainerRuntime = UnimplementedRuntime(),
-    platform: any PlatformChecking = PassingPlatform()
+    platform: any PlatformChecking = PassingPlatform(),
+    resolver: ResolverEnvironment? = nil
 ) async -> RunResult {
     let out = CapturedOutput(), err = CapturedOutput()
     let env = CLIEnvironment(
         workingDirectory: dir, stdout: out, stderr: err,
-        stdoutIsTTY: tty, stdinIsTTY: tty, runtime: runtime, platform: platform
+        stdoutIsTTY: tty, stdinIsTTY: tty, runtime: runtime, platform: platform,
+        resolver: resolver ?? .sandboxed(in: dir.deletingLastPathComponent())
     )
     let code = await DrupalCLI.run(args, environment: env)
     return RunResult(code: code, stdout: out.text, stderr: err.text)
@@ -132,5 +135,39 @@ final class FakeRuntime: ContainerRuntime {
             for e in entries { c.yield(e) }
             c.finish()
         }
+    }
+}
+
+extension ResolverEnvironment {
+    /// Every resolver path under `dir`, a fake launchd, and a port nothing listens on.
+    static func sandboxed(in dir: URL, isRoot: Bool = false, services: FakeServices = FakeServices()) -> ResolverEnvironment {
+        ResolverEnvironment(
+            hostsFile: HostsFile(url: dir.appending(path: "state/hosts")),
+            systemResolverFile: dir.appending(path: "etc/resolver/drupal"),
+            launchAgentFile: dir.appending(path: "LaunchAgents/\(agentLabel).plist"),
+            executable: URL(filePath: "/usr/local/bin/drupal"),
+            port: 1,
+            isRoot: isRoot,
+            services: services
+        )
+    }
+}
+
+final class FakeServices: ServiceControl {
+    private let loaded = Mutex<Set<String>>([])
+    private let calls = Mutex<[String]>([])
+
+    var recorded: [String] { calls.withLock { $0 } }
+
+    func isLoaded(_ label: String) -> Bool { loaded.withLock { $0.contains(label) } }
+
+    func load(_ plist: URL) throws(DrupalError) {
+        calls.withLock { $0.append("load") }
+        loaded.withLock { _ = $0.insert(ResolverEnvironment.agentLabel) }
+    }
+
+    func unload(_ label: String) throws(DrupalError) {
+        calls.withLock { $0.append("unload") }
+        loaded.withLock { _ = $0.remove(label) }
     }
 }
