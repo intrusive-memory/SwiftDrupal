@@ -44,7 +44,7 @@ struct StartCommand: DrupalCommand {
     static let configuration = CommandConfiguration(
         commandName: "start",
         abstract: "Start the web and db containers, then run post_start commands.",
-        discussion: "Idempotent: starting a running project succeeds. Exit 7 if a container fails to start, 8 on health timeout, 13 if a post_start command fails."
+        discussion: "Idempotent: starting a running project succeeds. The first start downloads a Linux kernel (about 290 MB, once; exit 15 if that fails). Exit 7 if a container fails to start, 8 on health timeout, 13 if a post_start command fails."
     )
 
     @OptionGroup var global: GlobalOptions
@@ -162,10 +162,15 @@ struct DeleteCommand: DrupalCommand {
     }
 }
 
-/// Shared by start and restart: runtime start, then each post_start command
-/// in order via `bash -c` in the web container, stopping at the first failure.
+/// Shared by start and restart: fetch the kernel if this is the first start,
+/// runtime start, then each post_start command in order via `bash -c` in the
+/// web container, stopping at the first failure.
 private func startAndHooks(_ project: ResolvedProject, timeout: Int, _ context: CommandContext) async throws(DrupalError) -> CommandOutput {
-    let status = try await context.runtime.start(project, options: StartOptions(healthTimeout: .seconds(timeout)))
+    // Progress goes to stderr in text mode only; JSON mode keeps stdout to the
+    // single envelope and stderr quiet.
+    let stderr = context.jsonMode ? nil : context.environment.stderr
+    let assets = try await context.environment.assets.ensureRuntimeAssets { stderr?.write($0 + "\n") }
+    let status = try await context.runtime.start(project, options: StartOptions(assets: assets, healthTimeout: .seconds(timeout)))
     let dnsWarnings = Hostname.register(project, status, context)
     var hooks: [PostStartResult] = []
     for command in project.config.postStart {

@@ -37,6 +37,11 @@ The container-independent CLI skeleton is built; containers are not.
   from drupal's own hosts file, routed via `/etc/resolver/drupal`;
   `/etc/hosts` is never touched. `start`/`stop`/`delete` keep the hosts
   file in step. See docs/cli-contract.md, "How `<name>.drupal` resolves".
+- Implemented: runtime assets (`Runtime/RuntimeAssets.swift`). `start`
+  and `restart` call `ensureRuntimeAssets` first, which fetches the pinned
+  Kata kernel once (or reuses the `container` CLI's copy) and returns it with
+  the vminit reference in `StartOptions.assets`. `Containerization.version`
+  must match the `exact:` pin in Package.swift, and a test enforces this.
 - Wired but stubbed: `start`, `stop`, `restart`, `status`/`describe`,
   `delete`, `exec`, `ssh`, `logs`, `import-db`, `export-db`. They go through
   the `ContainerRuntime` protocol, whose only implementation,
@@ -55,7 +60,9 @@ The container-independent CLI skeleton is built; containers are not.
     `ResolverEnvironment` (paths, LaunchAgent, launchd behind
     `ServiceControl`, injected in tests).
   - `Runtime/` — the `ContainerRuntime` protocol and its value types,
-    `UnimplementedRuntime`, and the host `PlatformChecking`.
+    `UnimplementedRuntime`, `RuntimeAssetStore` (kernel + vminit, behind
+    `RuntimeAssetProviding`/`KernelFetching`, injected in tests), and the
+    host `PlatformChecking`.
   - `CLI/` — `DrupalCLI` (entry point; owns parse errors), `RootCommand`,
     `DrupalCommand` (shared `run()`: output mode, envelope, exit code),
     `Manifest` (generated from ArgumentParser's dump plus reflection), and

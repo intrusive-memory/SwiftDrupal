@@ -61,7 +61,7 @@ import Testing
             "project_not_found": 4, "already_exists": 5, "platform_unavailable": 6,
             "container_start_failed": 7, "health_timeout": 8, "project_not_running": 9,
             "container_operation_failed": 10, "io_error": 11, "not_implemented": 12,
-            "post_start_failed": 13, "permission_required": 14,
+            "post_start_failed": 13, "permission_required": 14, "runtime_assets_unavailable": 15,
         ]
         let actual = Dictionary(uniqueKeysWithValues: ExitStatus.allCases.map { ($0.identifier, $0.rawValue) })
         #expect(actual == expected)

@@ -25,10 +25,11 @@ func drupal(
     in dir: URL,
     tty: Bool = false,
     runtime: any ContainerRuntime = UnimplementedRuntime(),
+    assets: any RuntimeAssetProviding = FakeAssets(),
     platform: any PlatformChecking = PassingPlatform(),
     resolver: ResolverEnvironment? = nil
 ) async -> RunResult {
-    await drupal(args, in: dir, tty: tty, runtime: runtime, platform: platform, resolver: resolver)
+    await drupal(args, in: dir, tty: tty, runtime: runtime, assets: assets, platform: platform, resolver: resolver)
 }
 
 func drupal(
@@ -36,13 +37,14 @@ func drupal(
     in dir: URL,
     tty: Bool = false,
     runtime: any ContainerRuntime = UnimplementedRuntime(),
+    assets: any RuntimeAssetProviding = FakeAssets(),
     platform: any PlatformChecking = PassingPlatform(),
     resolver: ResolverEnvironment? = nil
 ) async -> RunResult {
     let out = CapturedOutput(), err = CapturedOutput()
     let env = CLIEnvironment(
         workingDirectory: dir, stdout: out, stderr: err,
-        stdoutIsTTY: tty, stdinIsTTY: tty, runtime: runtime, platform: platform,
+        stdoutIsTTY: tty, stdinIsTTY: tty, runtime: runtime, assets: assets, platform: platform,
         resolver: resolver ?? .sandboxed(in: dir.deletingLastPathComponent())
     )
     let code = await DrupalCLI.run(args, environment: env)
@@ -76,6 +78,27 @@ struct PassingPlatform: PlatformChecking {
 struct FailingPlatform: PlatformChecking {
     func check() throws(DrupalError) {
         throw DrupalError(.platformUnavailable, "test: unsupported host")
+    }
+}
+
+/// Runtime assets without a download: a fixed kernel path, or a scripted failure.
+final class FakeAssets: RuntimeAssetProviding {
+    let error: DrupalError?
+    let progressMessage: String?
+    private let calls = Mutex(0)
+
+    init(error: DrupalError? = nil, progressMessage: String? = nil) {
+        self.error = error
+        self.progressMessage = progressMessage
+    }
+
+    var callCount: Int { calls.withLock { $0 } }
+
+    func ensureRuntimeAssets(progress: @Sendable (String) -> Void) async throws(DrupalError) -> RuntimeAssets {
+        calls.withLock { $0 += 1 }
+        if let progressMessage { progress(progressMessage) }
+        if let error { throw error }
+        return RuntimeAssets(kernel: URL(filePath: "/fake/vmlinux"), initfsReference: Containerization.vminitReference)
     }
 }
 

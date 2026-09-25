@@ -65,10 +65,14 @@ public struct ProjectStatus: Codable, Sendable, Equatable {
 }
 
 public struct StartOptions: Sendable, Equatable {
+    /// Kernel and vminit to boot with, already on disk / pinned
+    /// (`RuntimeAssetProviding.ensureRuntimeAssets`).
+    public var assets: RuntimeAssets
     /// How long to wait for web and db health checks before `healthTimeout`.
     public var healthTimeout: Duration
 
-    public init(healthTimeout: Duration = .seconds(120)) {
+    public init(assets: RuntimeAssets, healthTimeout: Duration = .seconds(120)) {
+        self.assets = assets
         self.healthTimeout = healthTimeout
     }
 }

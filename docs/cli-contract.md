@@ -101,6 +101,7 @@ Defined in one place: `ExitStatus` in
 | 12 | `not_implemented` | The command exists in the contract but its runtime is not built yet. |
 | 13 | `post_start_failed` | A `post_start` command exited non-zero (containers are left running). |
 | 14 | `permission_required` | A one-time step needs root (`/etc/resolver/drupal`); rerun the same command with `sudo`. |
+| 15 | `runtime_assets_unavailable` | `start`/`restart` could not download the Linux kernel, or it failed its pinned SHA-256. Nothing is left half-installed; rerun. |
 
 **`exec` and `ssh` exit with the child process's own exit code** when the
 child could be run, as `docker exec` does — so for those two commands a
@@ -180,7 +181,7 @@ list with every flag, its type (`boolean`, `integer`, `number`, `string`,
 | `init` | Create `.drupal/config.yaml` from defaults + field flags. Same flags again → unchanged, exit 0. Different existing file → exit 5 unless `--force`. | `{action: created\|overwritten\|unchanged, project: <resolved>}` |
 | `config` | No field flags: print the resolved config. With field flags: rewrite the file with those fields changed (file comments are not preserved). | `<resolved>`, or `{action: updated\|unchanged, project: <resolved>}` |
 | `validate` | Validate and print the resolved config. | `<resolved>` |
-| `start` | Start web + db (idempotent), wait `--timeout` seconds (default 120) for health, run `post_start`. | `{project, status, post_start: [{command, exit_code}]}` |
+| `start` | Start web + db (idempotent), wait `--timeout` seconds (default 120) for health, run `post_start`. The first start downloads the Linux kernel (see below). | `{project, status, post_start: [{command, exit_code}]}` |
 | `stop` | Stop both containers, keeping them and the data (idempotent). | `{project, status}` |
 | `restart` | `stop` then `start`. | as `start` |
 | `status` (alias `describe`) | Resolved config plus container state. | `{project: <resolved>, status}` |
@@ -223,6 +224,25 @@ Global options on every command: `--json` / `--no-json`, `--project-dir
 
 `status` is `{state: running|stopped|partial|absent, services: [{service:
 web|db, state: running|stopped|absent, image, ip_address}]}`.
+
+### The kernel, fetched on first `start`
+
+Containerization boots every container in its own VM, which needs an arm64
+Linux kernel; macOS does not ship one. The first `start` (or `restart`)
+puts one at `~/Library/Application Support/drupal/runtime/kernels/`:
+
+- It reuses a matching kernel the `container` CLI already installed under
+  `~/Library/Application Support/com.apple.container/kernels/`, if any;
+  otherwise it downloads the Kata Containers 3.17.0 release archive (about
+  290 MB, once) and extracts `vmlinux.container` (14.7 MB).
+- The kernel is pinned by SHA-256 and re-checked on every start; a missing
+  or corrupt file is fetched again. Failure exits 15
+  (`runtime_assets_unavailable`).
+- In text mode, progress lines go to stderr. JSON mode prints nothing extra.
+
+The guest init image (`ghcr.io/apple/containerization/vminit:<version>`)
+is not downloaded here: the runtime pulls and caches it itself. Its tag
+always equals the pinned Containerization library version.
 
 ### How `<name>.drupal` resolves
 

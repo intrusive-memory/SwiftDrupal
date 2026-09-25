@@ -2,8 +2,8 @@ import Foundation
 import Synchronization
 
 // Everything a command touches outside its own flags: working directory,
-// output streams, TTY state, the container runtime, and the `.drupal`
-// resolver's files and services. Commands read it via
+// output streams, TTY state, the container runtime and its kernel, and the
+// `.drupal` resolver's files and services. Commands read it via
 // `CLIEnvironment.current` (a task-local) so tests can run the real command
 // tree against temp dirs and captured output, in parallel.
 
@@ -38,6 +38,7 @@ public struct CLIEnvironment: Sendable {
     public var stdoutIsTTY: Bool
     public var stdinIsTTY: Bool
     public var runtime: any ContainerRuntime
+    public var assets: any RuntimeAssetProviding
     public var platform: any PlatformChecking
     public var resolver: ResolverEnvironment
 
@@ -48,6 +49,7 @@ public struct CLIEnvironment: Sendable {
         stdoutIsTTY: Bool,
         stdinIsTTY: Bool,
         runtime: any ContainerRuntime,
+        assets: any RuntimeAssetProviding,
         platform: any PlatformChecking,
         resolver: ResolverEnvironment
     ) {
@@ -57,6 +59,7 @@ public struct CLIEnvironment: Sendable {
         self.stdoutIsTTY = stdoutIsTTY
         self.stdinIsTTY = stdinIsTTY
         self.runtime = runtime
+        self.assets = assets
         self.platform = platform
         self.resolver = resolver
     }
@@ -70,6 +73,7 @@ public struct CLIEnvironment: Sendable {
             stdoutIsTTY: isatty(STDOUT_FILENO) == 1,
             stdinIsTTY: isatty(STDIN_FILENO) == 1,
             runtime: UnimplementedRuntime(),
+            assets: RuntimeAssetStore.live(),
             platform: HostPlatform(),
             resolver: .live()
         )

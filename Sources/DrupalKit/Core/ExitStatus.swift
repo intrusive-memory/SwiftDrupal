@@ -36,6 +36,8 @@ public enum ExitStatus: Int32, CaseIterable, Sendable, Codable {
     /// A one-time privileged step is needed (the /etc/resolver file); rerun
     /// the command with sudo.
     case permissionRequired = 14
+    /// The runtime's kernel could not be fetched or failed its checksum.
+    case runtimeAssetsUnavailable = 15
 
     public var identifier: String {
         switch self {
@@ -54,6 +56,7 @@ public enum ExitStatus: Int32, CaseIterable, Sendable, Codable {
         case .notImplemented: "not_implemented"
         case .postStartFailed: "post_start_failed"
         case .permissionRequired: "permission_required"
+        case .runtimeAssetsUnavailable: "runtime_assets_unavailable"
         }
     }
 
@@ -74,6 +77,7 @@ public enum ExitStatus: Int32, CaseIterable, Sendable, Codable {
         case .notImplemented: "The command is part of the contract but not implemented yet."
         case .postStartFailed: "A post_start command exited non-zero."
         case .permissionRequired: "A one-time step needs root; rerun the command with sudo."
+        case .runtimeAssetsUnavailable: "The Linux kernel could not be downloaded or failed its checksum."
         }
     }
 }
