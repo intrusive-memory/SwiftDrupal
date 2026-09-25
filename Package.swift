@@ -9,7 +9,9 @@ let package = Package(
         .macOS(.v26)
     ],
     products: [
-        .executable(name: "drupal", targets: ["SwiftDrupal"])
+        .executable(name: "drupal", targets: ["SwiftDrupal"]),
+        // Runtime spike (docs/spikes/01-containerization-runtime-spike.md); not shipped.
+        .executable(name: "container-spike", targets: ["ContainerSpike"]),
     ],
     dependencies: [
         .package(url: "https://github.com/apple/containerization", from: "0.1.0")
@@ -21,6 +23,15 @@ let package = Package(
             name: "SwiftDrupal",
             dependencies: [
                 .product(name: "Containerization", package: "containerization")
+            ]
+        ),
+        .executableTarget(
+            name: "ContainerSpike",
+            dependencies: [
+                .product(name: "Containerization", package: "containerization"),
+                .product(name: "ContainerizationOCI", package: "containerization"),
+                .product(name: "ContainerizationExtras", package: "containerization"),
+                .product(name: "ContainerizationOS", package: "containerization"),
             ]
         ),
         .testTarget(
