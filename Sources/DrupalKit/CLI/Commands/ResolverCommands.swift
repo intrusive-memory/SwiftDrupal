@@ -168,6 +168,8 @@ struct ResolverInstallCommand: DrupalCommand {
         if !env.services.isLoaded(label) {
             try env.services.load(env.launchAgentFile)
             actions.append("loaded \(label)")
+            // Give launchd a moment so the report reflects the new responder.
+            for _ in 0..<30 where DNSProbe.query(DNS.zone, port: env.port, timeout: 0.1) == nil {}
         }
         if env.systemResolverState != .installed {
             throw DrupalError(
