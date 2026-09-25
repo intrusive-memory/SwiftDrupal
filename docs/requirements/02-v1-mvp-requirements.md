@@ -265,10 +265,13 @@ matters as much as its features:
 
 1. Name for the new tool's repository/project — separate from the
    `drupal` binary name, which is decided; not addressed here.
-2. Whether the local-resolver approach to `<name>.drupal` is actually
-   practical to build for v1.0 versus falling back to rewriting
-   `/etc/hosts` on every start — needs a spike against real
-   `Containerization` IP-assignment behavior before committing.
+2. ~~Local resolver vs. `/etc/hosts`~~ — **decided: local resolver.**
+   `drupal resolver serve` answers `*.drupal` on 127.0.0.1:15353 from
+   drupal's own hosts file (`~/Library/Application Support/drupal/hosts`,
+   rewritten by every `start`/`stop`), routed there by a one-time
+   `/etc/resolver/drupal`. `/etc/hosts` is never touched. See
+   `docs/cli-contract.md`. Still to confirm against the runtime spike:
+   that the host can reach container IPs directly.
 3. Whether `web_environment`/`nodejs_version` passthrough is needed for a
    first working Drupal site, or can move to the out-of-scope column too —
    revisit once a real Drupal composer project is tried against v1.0.

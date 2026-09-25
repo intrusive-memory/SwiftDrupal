@@ -1,9 +1,13 @@
 // The `drupal` CLI: a local Drupal development environment built on Apple's
-// Containerization framework. See docs/requirements/ for the v1.0 scope.
+// Containerization framework. All logic lives in DrupalKit; this is only the
+// process entry point. See docs/cli-contract.md.
+
+import DrupalKit
+import Foundation
 
 @main
 struct SwiftDrupal {
-    static func main() {
-        print("drupal: not yet implemented — see docs/requirements/")
+    static func main() async {
+        exit(await DrupalCLI.main())
     }
 }

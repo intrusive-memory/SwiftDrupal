@@ -1,13 +1,17 @@
 # SwiftDrupal
 
+[![Tests](https://github.com/intrusive-memory/SwiftDrupal/actions/workflows/tests.yml/badge.svg)](https://github.com/intrusive-memory/SwiftDrupal/actions/workflows/tests.yml)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
+
 A standalone Swift CLI (`drupal`) for running a local Drupal development
 environment on Apple's [`container`](https://github.com/apple/container)
 runtime, built directly on Apple's
 [Containerization](https://github.com/apple/containerization) Swift package
 rather than on Docker or a compose-file shim.
 
-Not implemented yet — this repository currently holds the v1.0
-requirements and a package scaffold. See
+Early: the config commands (`init`, `config`, `validate`,
+`describe-commands`) work; container commands are wired but not yet
+implemented. The CLI contract is in [`docs/cli-contract.md`](docs/cli-contract.md). See
 [`docs/requirements/`](docs/requirements/) for the full scope:
 
 - [`01-apple-container-capability-survey.md`](docs/requirements/01-apple-container-capability-survey.md) —
